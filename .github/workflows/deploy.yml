@@ -1,5 +1,10 @@
 # Vérifie puis publie l'application sur GitHub Pages à chaque poussée sur main.
 # Le site est entièrement statique : il n'y a rien à héberger d'autre.
+#
+# La publication pousse le dossier `dist/` sur la branche `gh-pages` plutôt que
+# de passer par `upload-pages-artifact`. C'est volontaire : le téléversement
+# d'artefacts consomme le quota de stockage du compte, et échoue dès qu'il est
+# plein. Un push git ne consomme rien.
 name: Vérification et déploiement
 
 on:
@@ -8,11 +13,9 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Les droits minimaux pour que `deploy-pages` puisse publier.
+# Écriture nécessaire pour pousser la branche de publication.
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 # Un seul déploiement à la fois ; les poussées rapprochées s'annulent.
 concurrency:
@@ -21,36 +24,41 @@ concurrency:
 
 jobs:
   verifier:
-    name: Types, lint et tests
+    name: Types, lint, tests et publication
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
       - run: npm ci
       - run: npm run lint
       - run: npm test
+
       - name: Build
         run: npm run build
         env:
           # Active le chemin /Carnets/ attendu par une page de projet.
           GITHUB_PAGES: 'true'
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
 
-  deployer:
-    name: Publication
-    # Rien n'est publié tant que les vérifications ne passent pas, et seule
-    # la branche principale est déployée.
-    needs: verifier
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploiement.outputs.page_url }}
-    steps:
-      - id: deploiement
-        uses: actions/deploy-pages@v4
+      # Rien n'est publié depuis une pull request ni depuis une autre branche :
+      # les vérifications ci-dessus tournent quand même, elles.
+      - name: Publier sur la branche gh-pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        working-directory: dist
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Empêche GitHub Pages d'ignorer les fichiers commençant par « _ ».
+          touch .nojekyll
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "Déploiement de ${GITHUB_SHA}"
+          # Historique repris de zéro à chaque fois : la branche de publication
+          # ne grossit pas au fil des déploiements.
+          git push -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gh-pages

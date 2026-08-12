@@ -120,8 +120,14 @@ L'application est entièrement statique : `npm run build` produit un dossier
 `dist/` qu'on peut servir tel quel, sans serveur ni base de données.
 
 Le workflow `.github/workflows/deploy.yml` vérifie (types, lint, tests) puis
-publie sur GitHub Pages à chaque poussée sur `main`. Côté dépôt, il faut
-activer **Settings → Pages → Source : GitHub Actions**, une seule fois.
+pousse `dist/` sur la branche `gh-pages` à chaque poussée sur `main`. Côté
+dépôt, il faut régler une seule fois **Settings → Pages → Source : Deploy from
+a branch → `gh-pages` / `(root)`**.
+
+La publication passe par un push git plutôt que par `upload-pages-artifact`,
+qui consomme le quota de stockage d'artefacts du compte et échoue dès qu'il est
+saturé. Un push ne consomme rien, et la branche de publication est réécrite à
+chaque fois pour ne pas grossir.
 
 Deux points à connaître avant de mettre en ligne :
 
