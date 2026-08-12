@@ -16,6 +16,8 @@ niveaux : **bloc-notes → sections → pages**.
   de la casse.
 - **Renommer** (double-clic ou menu `⋯`) et **supprimer** n'importe quel niveau,
   à tout moment.
+- **Verrouiller** un bloc-notes, une section ou une page par mot de passe : le
+  contenu est réellement chiffré, titre compris.
 
 L'interface tient en trois colonnes : les bloc-notes et leurs sections à
 gauche, les pages de la section ouverte au milieu, la page à droite.
@@ -25,7 +27,7 @@ gauche, les pages de la section ouverte au milieu, la page à droite.
 ```bash
 npm install
 npm run dev      # serveur de développement
-npm test         # tests unitaires (reducer, recherche)
+npm test         # tests unitaires (reducer, recherche, chiffrement, verrous)
 npm run lint     # oxlint
 npm run build    # vérification des types + build de production
 ```
@@ -40,13 +42,14 @@ l'éditeur, Vite pour le build. Aucun serveur : les notes vivent dans
 
 ```
 src/
-  types.ts               le modèle : Notebook, Section, Page, Selection
+  types.ts               le modèle : Notebook, Section, Page, Lock, Selection
   store/
     reducer.ts           toutes les transitions d'état, fonctions pures
     CarnetsProvider.tsx  l'état, les actions, l'enregistrement automatique
     context.ts           le contrat exposé à l'interface
     useCarnets.ts        accès à l'état et vues dérivées des trois colonnes
     seed.ts              le classeur du premier lancement
+    useVault.ts          la session déverrouillée, en mémoire seulement
     persistence/
       indexeddb.ts       le support principal, une entrée par note
       localstorage.ts    le repli, et la reprise de l'ancien format
@@ -55,6 +58,8 @@ src/
       index.ts           ouverture, choix du support, reprise
   lib/
     search.ts            recherche globale, classement et extraits
+    crypto.ts            dérivation de clé et chiffrement (WebCrypto)
+    locks.ts             portée des verrous et règle de non-imbrication
     text.ts              repliage des accents, HTML → texte, dates
     colors.ts            la palette des bloc-notes
   components/            les trois colonnes, la barre d'outils, la recherche
@@ -99,6 +104,28 @@ refuser de démarrer. Les notes d'une version antérieure y sont reprises
 automatiquement au premier lancement, puis rangées sous
 `carnets:sauvegarde-v1` — conservées en filet de sécurité, mais plus jamais
 relues, pour que des notes supprimées ne puissent pas ressusciter.
+
+**Le verrouillage chiffre pour de bon.** Poser un mot de passe dérive une clé
+(PBKDF2-HMAC-SHA256, 600 000 itérations, sel propre à chaque verrou) et chiffre
+les pages concernées en AES-GCM. Ce qui part sur le disque est le sel, le
+nombre d'itérations, un témoin chiffré — et le contenu illisible. Le mot de
+passe n'est enregistré nulle part, ni en clair ni en empreinte : un mot de
+passe oublié rend les notes définitivement irrécupérables, et l'interface le
+dit avant de verrouiller.
+
+Le titre est chiffré avec le corps : une page verrouillée s'affiche « Page
+verrouillée », sans rien laisser deviner. Une page verrouillée et fermée est
+**écartée de la recherche** — ne pas l'afficher du tout, même comme résultat
+masqué, évite de révéler qu'un mot recherché s'y trouve. Le déverrouillage vit
+en mémoire (`useVault.ts`) : recharger la page referme tout, et **cinq minutes
+sans activité** referment aussi. Le compte à rebours repart à la moindre frappe,
+au moindre clic ou défilement — c'est l'inactivité continue qui est mesurée, pas
+le temps écoulé depuis l'ouverture.
+
+**Un seul verrou par branche.** Protéger un bloc-notes dont une section est
+déjà protégée est refusé, avec l'explication. Sans cette règle, atteindre une
+note pourrait demander deux mots de passe successifs, et le code devrait gérer
+des clés en cascade.
 
 **L'ordre est celui de la création.** Un magasin clé-valeur rend ses entrées
 triées par identifiant : `assemble.ts` rétablit l'ordre à la relecture à partir

@@ -1,16 +1,17 @@
-import type { CarnetsState, Notebook, Page, Section } from '../../types'
+import type { CarnetsState, Lock, Notebook, Page, Section } from '../../types'
 import { assemble } from './assemble'
 import { changes, unchanged } from './diff'
 import { STATE_VERSION, type Driver } from './types'
 
 const DB_NAME = 'carnets'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 const NOTEBOOKS = 'notebooks'
 const SECTIONS = 'sections'
 const PAGES = 'pages'
+const LOCKS = 'locks'
 const META = 'meta'
-const ALL_STORES = [NOTEBOOKS, SECTIONS, PAGES, META]
+const ALL_STORES = [NOTEBOOKS, SECTIONS, PAGES, LOCKS, META]
 
 /** Clé de l'entrée du magasin `meta` qui retient la dernière page consultée. */
 const SELECTION_KEY = 'selection'
@@ -27,14 +28,15 @@ export async function openIndexedDb(): Promise<Driver> {
     kind: 'indexeddb',
 
     async read(): Promise<CarnetsState | null> {
-      const [notebooks, sections, pages, selection] = await Promise.all([
+      const [notebooks, sections, pages, locks, selection] = await Promise.all([
         readAll<Notebook>(db, NOTEBOOKS),
         readAll<Section>(db, SECTIONS),
         readAll<Page>(db, PAGES),
+        readAll<Lock>(db, LOCKS),
         readMeta(db, SELECTION_KEY),
       ])
       if (notebooks.length === 0) return null
-      return assemble(notebooks, sections, pages, selection)
+      return assemble(notebooks, sections, pages, locks, selection)
     },
 
     async write(previous: CarnetsState | null, next: CarnetsState): Promise<void> {
@@ -43,6 +45,7 @@ export async function openIndexedDb(): Promise<Driver> {
       const notebooks = changes(previous?.notebooks, next.notebooks)
       const sections = changes(previous?.sections, next.sections)
       const pages = changes(previous?.pages, next.pages)
+      const locks = changes(previous?.locks, next.locks)
 
       // Une seule transaction pour l'ensemble : soit tout est écrit, soit rien
       // ne l'est, et le classeur ne peut pas rester à moitié modifié.
@@ -50,6 +53,7 @@ export async function openIndexedDb(): Promise<Driver> {
       apply(tx.objectStore(NOTEBOOKS), notebooks)
       apply(tx.objectStore(SECTIONS), sections)
       apply(tx.objectStore(PAGES), pages)
+      apply(tx.objectStore(LOCKS), locks)
 
       const meta = tx.objectStore(META)
       meta.put({ key: SELECTION_KEY, value: next.selection })
@@ -76,7 +80,7 @@ function open(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = () => {
       const db = request.result
-      for (const name of [NOTEBOOKS, SECTIONS, PAGES]) {
+      for (const name of [NOTEBOOKS, SECTIONS, PAGES, LOCKS]) {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' })
       }
       if (!db.objectStoreNames.contains(META)) db.createObjectStore(META, { keyPath: 'key' })

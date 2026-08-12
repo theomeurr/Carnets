@@ -3,6 +3,8 @@ import { fold } from './text'
 
 export interface SearchHit {
   page: Page
+  /** Le titre lisible : celui de la page, ou celui déchiffré pour cette session. */
+  title: string
   notebookName: string
   notebookColor: string
   sectionName: string
@@ -18,8 +20,18 @@ const SNIPPET_RADIUS = 90
  * confondus. Une page est retenue si elle contient **tous** les mots de la
  * requête ; un mot trouvé dans le titre pèse plus lourd qu'un mot trouvé dans
  * le corps, et une page récemment modifiée départage les ex æquo.
+ *
+ * `reveal` donne accès au contenu des pages protégées ouvertes dans la session.
+ * Une page verrouillée et fermée est **écartée sans laisser de trace** : ne pas
+ * l'afficher du tout, même comme « résultat masqué », évite de révéler qu'un
+ * mot recherché s'y trouve.
  */
-export function search(state: CarnetsState, query: string, limit = 30): SearchHit[] {
+export function search(
+  state: CarnetsState,
+  query: string,
+  limit = 30,
+  reveal?: (page: Page) => { title: string; text: string } | null,
+): SearchHit[] {
   const terms = fold(query).split(/\s+/).filter(Boolean)
   if (terms.length === 0) return []
 
@@ -32,8 +44,11 @@ export function search(state: CarnetsState, query: string, limit = 30): SearchHi
     const notebook = section ? notebooks.get(section.notebookId) : undefined
     if (!section || !notebook) continue
 
-    const title = fold(page.title)
-    const body = fold(page.text)
+    const readable = reveal ? reveal(page) : { title: page.title, text: page.text }
+    if (!readable) continue
+
+    const title = fold(readable.title)
+    const body = fold(readable.text)
 
     let score = 0
     let matchesAll = true
@@ -51,10 +66,11 @@ export function search(state: CarnetsState, query: string, limit = 30): SearchHi
 
     hits.push({
       page,
+      title: readable.title,
       notebookName: notebook.name,
       notebookColor: notebook.color,
       sectionName: section.name,
-      snippet: snippetFor(page.text, body, terms),
+      snippet: snippetFor(readable.text, body, terms),
       score,
     })
   }

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { NOTEBOOK_COLORS } from '../lib/colors'
-import { IconMore, IconPalette, IconPencil, IconTrash } from './Icons'
+import { IconLock, IconMore, IconPalette, IconPencil, IconTrash, IconUnlock } from './Icons'
+import type { LockControls } from './useLockMenu'
 
 export interface RowMenuProps {
   label: string
@@ -8,13 +9,14 @@ export interface RowMenuProps {
   onDelete: () => void
   /** Fourni pour les bloc-notes seulement : ajoute le choix de la couleur. */
   color?: { value: string; onChange: (color: string) => void }
+  lock?: LockControls
 }
 
 /**
  * Le menu « ⋯ » d'une ligne : renommer, recolorer, supprimer. Il se ferme au
  * clic à l'extérieur, à Échap, et rend le focus au bouton qui l'a ouvert.
  */
-export function RowMenu({ label, onRename, onDelete, color }: RowMenuProps) {
+export function RowMenu({ label, onRename, onDelete, color, lock }: RowMenuProps) {
   const [open, setOpen] = useState(false)
   const wrapper = useRef<HTMLDivElement>(null)
   const button = useRef<HTMLButtonElement>(null)
@@ -94,6 +96,37 @@ export function RowMenu({ label, onRename, onDelete, color }: RowMenuProps) {
             </div>
           )}
 
+          {lock && (
+            <div className="row-menu__group">
+              {lock.status === 'none' && (
+                <MenuItem
+                  icon={<IconLock />}
+                  onClick={run(lock.onProtect)}
+                  disabled={lock.obstacle !== null}
+                  // Expliquer le refus vaut mieux que griser sans raison.
+                  title={lock.obstacle ?? undefined}
+                >
+                  Protéger par mot de passe
+                </MenuItem>
+              )}
+              {lock.status === 'closed' && (
+                <MenuItem icon={<IconUnlock />} onClick={run(lock.onUnlock)}>
+                  Déverrouiller
+                </MenuItem>
+              )}
+              {lock.status === 'open' && (
+                <>
+                  <MenuItem icon={<IconLock />} onClick={run(lock.onRelock)}>
+                    Verrouiller maintenant
+                  </MenuItem>
+                  <MenuItem icon={<IconUnlock />} onClick={run(lock.onUnprotect)}>
+                    Retirer la protection
+                  </MenuItem>
+                </>
+              )}
+            </div>
+          )}
+
           <MenuItem icon={<IconTrash />} danger onClick={run(onDelete)}>
             Supprimer
           </MenuItem>
@@ -108,11 +141,15 @@ function MenuItem({
   children,
   onClick,
   danger,
+  disabled,
+  title,
 }: {
   icon: ReactNode
   children: ReactNode
   onClick: (event: React.MouseEvent) => void
   danger?: boolean
+  disabled?: boolean
+  title?: string
 }) {
   return (
     <button
@@ -120,6 +157,8 @@ function MenuItem({
       role="menuitem"
       className={`row-menu__item ${danger ? 'is-danger' : ''}`}
       onClick={onClick}
+      disabled={disabled}
+      title={title}
     >
       {icon}
       {children}

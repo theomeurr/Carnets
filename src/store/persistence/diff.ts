@@ -38,6 +38,7 @@ export function unchanged(previous: CarnetsState | null, next: CarnetsState): bo
     previous.notebooks === next.notebooks &&
     previous.sections === next.sections &&
     previous.pages === next.pages &&
+    previous.locks === next.locks &&
     previous.selection === next.selection
   )
 }

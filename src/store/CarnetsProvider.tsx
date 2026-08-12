@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
 import { nextColor } from '../lib/colors'
 import { newId } from '../lib/id'
+import { lockOfPage } from '../lib/locks'
 import type { CarnetsState, Id, Notebook, Page, Section } from '../types'
 import { CarnetsContext, type CarnetsApi, type SaveState } from './context'
 import { describeFailure, openStore, STATE_VERSION, type Driver } from './persistence'
 import { unchanged } from './persistence/diff'
 import { reducer } from './reducer'
 import { seed } from './seed'
+import { useVault } from './useVault'
 
 /** Délai d'inactivité avant écriture — assez court pour être invisible. */
 const SAVE_DELAY_MS = 400
@@ -16,6 +18,7 @@ const EMPTY: CarnetsState = {
   notebooks: [],
   sections: [],
   pages: [],
+  locks: [],
   selection: { notebookId: null, sectionId: null, pageId: null },
 }
 
@@ -102,7 +105,7 @@ export function CarnetsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     schedule(true)
-  }, [state.notebooks, state.sections, state.pages, schedule])
+  }, [state.notebooks, state.sections, state.pages, state.locks, schedule])
 
   // La navigation est mémorisée elle aussi, mais sans indicateur : rouvrir la
   // dernière page consultée n'est pas une modification du contenu.
@@ -180,10 +183,41 @@ export function CarnetsProvider({ children }: { children: ReactNode }) {
     return true
   }, [])
 
+  const vault = useVault(latest, dispatch)
+
+  // Écrire une page passe par le coffre : si elle est sous un verrou ouvert,
+  // c'est le chiffré qui part en base, jamais le texte en clair.
+  const writePage = useCallback(
+    (id: Id, html: string, text: string) => {
+      const page = latest.current.pages.find((candidate) => candidate.id === id)
+      const title = page ? (vault.reveal(page)?.title ?? '') : ''
+      void vault.seal(id, { title, html, text }).then((sealed) => {
+        if (!sealed) dispatch({ type: 'page/write', id, html, text, now: Date.now() })
+      })
+    },
+    [vault],
+  )
+
+  // Le titre d'une page protégée fait partie du chiffré : le renommer suit donc
+  // le même chemin que le contenu.
+  const renamePage = useCallback(
+    (id: Id, title: string) => {
+      const page = latest.current.pages.find((candidate) => candidate.id === id)
+      const current = page ? vault.reveal(page) : null
+      if (page && lockOfPage(latest.current, page) && current) {
+        void vault.seal(id, { ...current, title })
+        return
+      }
+      dispatch({ type: 'page/rename', id, title, now: Date.now() })
+    },
+    [vault],
+  )
+
   const api = useMemo<CarnetsApi>(
     () => ({
       state,
       save,
+      vault,
       addNotebook,
       renameNotebook: (id, name) => dispatch({ type: 'notebook/rename', id, name }),
       recolorNotebook: (id, color) => dispatch({ type: 'notebook/recolor', id, color }),
@@ -193,13 +227,12 @@ export function CarnetsProvider({ children }: { children: ReactNode }) {
       removeSection: (id) => dispatch({ type: 'section/remove', id }),
       addPage,
       claimNewPageFocus,
-      renamePage: (id, title) => dispatch({ type: 'page/rename', id, title, now: Date.now() }),
-      writePage: (id, html, text) =>
-        dispatch({ type: 'page/write', id, html, text, now: Date.now() }),
+      renamePage,
+      writePage,
       removePage: (id) => dispatch({ type: 'page/remove', id }),
       select: (patch) => dispatch({ type: 'select', patch }),
     }),
-    [state, save, addNotebook, addSection, addPage, claimNewPageFocus],
+    [state, save, vault, addNotebook, addSection, addPage, claimNewPageFocus, renamePage, writePage],
   )
 
   // Tant que le classeur n'est pas relu, l'interface n'a rien de sensé à
@@ -226,6 +259,7 @@ function blankPage(sectionId: Id, now: number): Page {
     title: '',
     html: '',
     text: '',
+    cipher: null,
     createdAt: now,
     updatedAt: now,
   }

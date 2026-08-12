@@ -646,3 +646,73 @@
     display: none;
   }
 }
+
+/* ---------- Verrous dans les colonnes ---------- */
+
+.notebook-row__icon.is-locked,
+.section-row__lock,
+.page-card__lock {
+  color: var(--text-mute);
+}
+
+.section-row__lock {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  margin: 0 -1px;
+}
+
+.page-card__lock {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--text-mute);
+}
+
+.page-card.is-sealed .page-card__title {
+  color: var(--text-mute);
+  font-style: normal;
+}
+
+.page-card.is-sealed .page-card__preview {
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.topbar__relock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 28px;
+  margin-left: auto;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-soft);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.topbar__relock:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.topbar__relock-count {
+  min-width: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* Quand le bouton est là, c'est lui qui pousse l'indicateur à droite. */
+.topbar__relock + .save-badge {
+  margin-left: 12px;
+}

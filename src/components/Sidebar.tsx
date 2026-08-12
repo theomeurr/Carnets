@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { colorOf } from '../lib/colors'
 import { useCarnets, useCurrentView, usePageCounts } from '../store/useCarnets'
 import type { Id } from '../types'
-import { IconNotebook, IconPlus } from './Icons'
+import { IconLock, IconNotebook, IconPlus } from './Icons'
 import { InlineRename } from './InlineRename'
 import { ConfirmDialog } from './Modal'
 import { RowMenu } from './RowMenu'
+import { useLockMenu } from './useLockMenu'
 
 type Pending =
   | { kind: 'notebook'; id: Id; name: string; sections: number; pages: number }
@@ -20,6 +21,8 @@ export function Sidebar() {
   const { state, select, addNotebook, addSection } = carnets
   const { notebook: activeNotebook, section: activeSection, sections } = useCurrentView()
   const pageCounts = usePageCounts()
+
+  const { controlsFor, dialogs } = useLockMenu()
 
   const [renaming, setRenaming] = useState<Id | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
@@ -85,7 +88,11 @@ export function Sidebar() {
                   }}
                 >
                   <span className="notebook-row__tab" aria-hidden="true" />
-                  <IconNotebook className="notebook-row__icon" />
+                  {controlsFor('notebook', notebook.id, notebook.name).status === 'closed' ? (
+                    <IconLock className="notebook-row__icon is-locked" />
+                  ) : (
+                    <IconNotebook className="notebook-row__icon" />
+                  )}
                   {renaming === notebook.id ? (
                     <InlineRename
                       ariaLabel={`Renommer le bloc-notes ${notebook.name}`}
@@ -107,6 +114,7 @@ export function Sidebar() {
                       value: notebook.color,
                       onChange: (next) => carnets.recolorNotebook(notebook.id, next),
                     }}
+                    lock={controlsFor('notebook', notebook.id, notebook.name)}
                   />
                 </div>
 
@@ -131,7 +139,12 @@ export function Sidebar() {
                               }
                             }}
                           >
-                            <span className="section-row__dot" aria-hidden="true" />
+                            {controlsFor('section', section.id, section.name).status ===
+                            'closed' ? (
+                              <IconLock className="section-row__lock" />
+                            ) : (
+                              <span className="section-row__dot" aria-hidden="true" />
+                            )}
                             {renaming === section.id ? (
                               <InlineRename
                                 ariaLabel={`Renommer la section ${section.name}`}
@@ -159,6 +172,7 @@ export function Sidebar() {
                                   pages: pageCounts.get(section.id) ?? 0,
                                 })
                               }
+                              lock={controlsFor('section', section.id, section.name)}
                             />
                           </div>
                         </li>
@@ -185,6 +199,8 @@ export function Sidebar() {
         <IconPlus />
         Nouveau bloc-notes
       </button>
+
+      {dialogs}
 
       {pending && (
         <ConfirmDialog

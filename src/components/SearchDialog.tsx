@@ -11,13 +11,18 @@ import { IconSearch } from './Icons'
  * repositionnant les trois colonnes d'un coup.
  */
 export function SearchDialog({ onClose }: { onClose: () => void }) {
-  const { state, select } = useCarnets()
+  const { state, select, vault } = useCarnets()
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
   const listRef = useRef<HTMLUListElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const hits = useMemo(() => search(state, query), [state, query])
+  // Le coffre filtre : une page protégée et fermée n'apparaît jamais dans les
+  // résultats, pas même comme entrée masquée.
+  const hits = useMemo(
+    () => search(state, query, 30, (page) => vault.reveal(page)),
+    [state, query, vault],
+  )
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -86,6 +91,7 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
           {query.trim() === '' ? (
             <p className="search__hint">
               Tapez pour chercher dans les titres et le contenu de vos {state.pages.length} pages.
+              {state.locks.length > 0 && ' Les pages verrouillées en sont exclues.'}
             </p>
           ) : hits.length === 0 ? (
             <p className="search__hint">Aucun résultat pour « {query.trim()} ».</p>
@@ -108,7 +114,7 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
                         aria-hidden="true"
                       />
                       <span className="search__hit-title">
-                        <Marked value={displayTitle(hit.page.title)} query={query} />
+                        <Marked value={displayTitle(hit.title)} query={query} />
                       </span>
                       <span className="search__hit-date">{formatDate(hit.page.updatedAt)}</span>
                     </span>
