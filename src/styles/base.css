@@ -512,3 +512,68 @@ mark {
   flex: none;
   margin-top: 1px;
 }
+
+/* ---------- Invite de mise à jour ---------- */
+
+.update-prompt {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 10px 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  animation: rise 160ms ease-out;
+}
+
+.update-prompt__icon {
+  flex: none;
+  color: var(--accent);
+}
+
+.update-prompt__text {
+  margin: 0;
+  font-size: 13px;
+}
+
+.update-prompt__action {
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.update-prompt__action:hover {
+  filter: brightness(1.07);
+}
+
+.update-prompt__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-mute);
+  cursor: pointer;
+}
+
+.update-prompt__close:hover {
+  background: var(--hover);
+  color: var(--text);
+}

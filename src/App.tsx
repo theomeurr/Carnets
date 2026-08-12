@@ -5,6 +5,7 @@ import { SaveBanner } from './components/SaveBanner'
 import { SearchDialog } from './components/SearchDialog'
 import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
+import { UpdatePrompt } from './components/UpdatePrompt'
 import { CarnetsProvider } from './store/CarnetsProvider'
 
 export default function App() {
@@ -41,6 +42,7 @@ function Workspace() {
         <PageEditor />
       </main>
       {searching && <SearchDialog onClose={() => setSearching(false)} />}
+      <UpdatePrompt />
     </div>
   )
 }

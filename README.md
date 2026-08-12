@@ -18,6 +18,8 @@ niveaux : **bloc-notes → sections → pages**.
   à tout moment.
 - **Verrouiller** un bloc-notes, une section ou une page par mot de passe : le
   contenu est réellement chiffré, titre compris.
+- **S'installer comme une application** et fonctionner **entièrement hors
+  ligne**, y compris au tout premier lancement après installation.
 
 L'interface tient en trois colonnes : les bloc-notes et leurs sections à
 gauche, les pages de la section ouverte au milieu, la page à droite.
@@ -58,6 +60,7 @@ src/
       index.ts           ouverture, choix du support, reprise
   lib/
     search.ts            recherche globale, classement et extraits
+    persist-storage.ts   demande de stockage non évinçable
     crypto.ts            dérivation de clé et chiffrement (WebCrypto)
     locks.ts             portée des verrous et règle de non-imbrication
     text.ts              repliage des accents, HTML → texte, dates
@@ -141,6 +144,32 @@ l'autre.
 filtre par son schéma. Les aperçus, les extraits de recherche et le surlignage
 sont construits à partir du texte brut et rendus comme des éléments React.
 
+## Installer l'application
+
+Carnets est une PWA : depuis le site, le navigateur propose de l'installer, et
+elle s'ouvre ensuite dans sa propre fenêtre, sans barre d'adresse.
+
+- **Chrome / Edge (bureau)** : l'icône d'installation apparaît au bout de la
+  barre d'adresse.
+- **Android** : menu ⋮ → « Installer l'application ».
+- **iOS / iPadOS** : Safari → Partager → « Sur l'écran d'accueil ». (Apple ne
+  propose pas d'invite automatique.)
+
+Une fois installée, l'application **fonctionne sans réseau** : tout le code est
+mis en cache à l'installation, et les notes sont de toute façon dans le
+navigateur. On peut écrire dans un train, un avion ou une cave.
+
+Au démarrage, l'application demande le **stockage persistant**
+(`navigator.storage.persist()`), qui empêche le navigateur d'effacer les notes
+de lui-même quand l'espace disque vient à manquer. Une application installée
+l'obtient en général sans rien demander ; un refus ne change rien au
+fonctionnement, seulement au risque d'éviction.
+
+Les mises à jour ne s'appliquent **jamais sans prévenir** : quand une nouvelle
+version est prête, un bandeau propose de recharger. Recharger sous les doigts
+de quelqu'un qui écrit — ou qui a des notes déverrouillées — n'est pas une
+option.
+
 ## Déploiement
 
 L'application est entièrement statique : `npm run build` produit un dossier
@@ -151,29 +180,20 @@ pousse `dist/` sur la branche `gh-pages` à chaque poussée sur `main`. Côté
 dépôt, il faut régler une seule fois **Settings → Pages → Source : Deploy from
 a branch → `gh-pages` / `(root)`**.
 
-La publication passe par un push git plutôt que par `upload-pages-artifact`,
-qui consomme le quota de stockage d'artefacts du compte et échoue dès qu'il est
-saturé. Un push ne consomme rien, et la branche de publication est réécrite à
-chaque fois pour ne pas grossir.
-
-Deux points à connaître avant de mettre en ligne :
-
-- **HTTPS est nécessaire** pour le verrouillage des notes : `crypto.subtle`
-  n'existe que dans un contexte sécurisé. GitHub Pages, Netlify, Vercel et
-  Cloudflare Pages servent tous en HTTPS ; une adresse `http://` en réseau
-  local, non.
-- **Les notes ne quittent jamais le navigateur.** Elles vivent dans IndexedDB,
-  par origine : chaque visiteur a les siennes, et déployer ne partage aucune
-  donnée. Il n'y a ni compte, ni synchronisation, ni serveur à administrer.
-
 Le build utilise des **chemins relatifs**, donc le même `dist/` fonctionne à la
 racine d'un domaine comme dans un sous-dossier : GitHub Pages, Netlify, Vercel,
 Cloudflare Pages ou un simple dossier servi par nginx, sans rien reparamétrer.
 
-## Contribuer
+Deux points à connaître avant de mettre en ligne :
 
-Les correctifs et les propositions sont les bienvenus. Avant d'ouvrir une pull
-request :
+- **HTTPS est obligatoire** — pour le verrouillage des notes (`crypto.subtle`
+  n'existe que dans un contexte sécurisé) comme pour le service worker, sans
+  lequel il n'y a ni installation ni hors ligne. `localhost` fait exception.
+- **Les notes ne quittent jamais l'appareil.** Elles vivent dans IndexedDB, par
+  origine : chaque visiteur a les siennes, et déployer ne partage aucune
+  donnée. Il n'y a ni compte, ni synchronisation, ni serveur à administrer.
+
+## Vérifier avant de pousser
 
 ```bash
 npm run lint     # oxlint
@@ -181,10 +201,9 @@ npm test         # tests unitaires
 npm run build    # vérification des types + build
 ```
 
-Ces trois commandes sont celles que le workflow exécute ; si elles passent en
-local, l'intégration continue passera aussi.
+Ce sont les trois commandes du workflow : si elles passent en local,
+l'intégration continue passera aussi.
 
 ## Licence
 
-[MIT](LICENSE) — faites-en ce que vous voulez, en gardant la mention de
-copyright.
+[MIT](LICENSE).

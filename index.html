@@ -2,10 +2,26 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Carnets — prise de notes en bloc-notes, sections et pages." />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Carnets</title>
+    <meta
+      name="description"
+      content="Prise de notes en bloc-notes, sections et pages. Fonctionne hors ligne, tout reste sur votre appareil."
+    />
+
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <!-- iOS ignore les icônes du manifeste et lit celle-ci. -->
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+
+    <!-- La teinte de la barre système suit le thème de l'appareil. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1d1e22" />
+
+    <!-- Lancement en plein écran depuis l'écran d'accueil. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Carnets" />
   </head>
   <body>
     <div id="root"></div>
