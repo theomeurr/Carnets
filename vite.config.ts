@@ -2,10 +2,12 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  // Une page de projet GitHub Pages est servie sous /<dépôt>/, alors qu'en
-  // développement et sur un hébergeur classique la racine est `/`. La variable
-  // n'est posée que par le workflow de publication.
-  base: process.env.GITHUB_PAGES === 'true' ? '/Carnets/' : '/',
+  // Chemins relatifs : le site fonctionne où qu'il soit servi — à la racine,
+  // sous /Carnets/ d'une page de projet GitHub Pages, ou dans n'importe quel
+  // sous-dossier. Un chemin absolu obligerait à connaître l'emplacement au
+  // moment du build, et une page blanche serait le seul signe d'une erreur.
+  // C'est sans risque ici : l'application tient en une seule page, sans routeur.
+  base: './',
   plugins: [react()],
   build: {
     rollupOptions: {

@@ -38,11 +38,9 @@ jobs:
       - run: npm run lint
       - run: npm test
 
-      - name: Build
-        run: npm run build
-        env:
-          # Active le chemin /Carnets/ attendu par une page de projet.
-          GITHUB_PAGES: 'true'
+      # Les chemins du build sont relatifs : rien à paramétrer selon l'endroit
+      # où le site sera servi.
+      - run: npm run build
 
       # Rien n'est publié depuis une pull request ni depuis une autre branche :
       # les vérifications ci-dessus tournent quand même, elles.

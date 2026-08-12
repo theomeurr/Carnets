@@ -166,9 +166,9 @@ Deux points à connaître avant de mettre en ligne :
   par origine : chaque visiteur a les siennes, et déployer ne partage aucune
   donnée. Il n'y a ni compte, ni synchronisation, ni serveur à administrer.
 
-Pour un autre hébergeur, `npm run build` sans la variable `GITHUB_PAGES` place
-le site à la racine (`/`), ce qui convient à Netlify, Vercel ou Cloudflare
-Pages sans autre réglage.
+Le build utilise des **chemins relatifs**, donc le même `dist/` fonctionne à la
+racine d'un domaine comme dans un sous-dossier : GitHub Pages, Netlify, Vercel,
+Cloudflare Pages ou un simple dossier servi par nginx, sans rien reparamétrer.
 
 ## Contribuer
 
