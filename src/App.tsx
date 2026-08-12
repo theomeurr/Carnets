@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { PageEditor } from './components/PageEditor'
 import { PageList } from './components/PageList'
+import { SaveBanner } from './components/SaveBanner'
 import { SearchDialog } from './components/SearchDialog'
 import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
@@ -33,6 +34,7 @@ function Workspace() {
   return (
     <div className="app">
       <TopBar onSearch={() => setSearching(true)} />
+      <SaveBanner />
       <main className="columns">
         <Sidebar />
         <PageList />

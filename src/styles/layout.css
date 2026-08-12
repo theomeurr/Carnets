@@ -99,9 +99,76 @@
   color: #12a150;
 }
 
+.save-badge.is-error {
+  color: var(--danger);
+  font-weight: 550;
+}
+
 @media (prefers-color-scheme: dark) {
   .save-badge.is-saved {
     color: #3ecf82;
+  }
+}
+
+/* ---------- Échec d'enregistrement ---------- */
+
+.save-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: none;
+  padding: 10px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.save-banner__icon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.save-banner p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---------- Écran d'ouverture ---------- */
+
+.boot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  height: 100dvh;
+  color: var(--text-mute);
+}
+
+.boot p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.boot__spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot__spinner {
+    animation-duration: 2s;
   }
 }
 

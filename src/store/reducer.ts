@@ -13,9 +13,15 @@ export type Action =
   | { type: 'page/write'; id: Id; html: string; text: string; now: number }
   | { type: 'page/remove'; id: Id }
   | { type: 'select'; patch: Partial<Selection> }
+  | { type: 'state/hydrate'; state: CarnetsState }
 
 export function reducer(state: CarnetsState, action: Action): CarnetsState {
   switch (action.type) {
+    // Le classeur relu du stockage remplace l'état de démarrage. Il repasse par
+    // `settle` : la sélection mémorisée peut désigner une page disparue depuis.
+    case 'state/hydrate':
+      return settle(action.state)
+
     case 'notebook/add': {
       const { notebook, section, page } = action
       return settle({

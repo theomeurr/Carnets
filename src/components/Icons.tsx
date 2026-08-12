@@ -79,6 +79,13 @@ export const IconCloud = ({ className }: IconProps) => (
   </svg>
 )
 
+export const IconAlert = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <path d="M12 4.5 2.8 20h18.4zM12 10v4.5" />
+    <circle cx="12" cy="17.4" r="1" fill="currentColor" stroke="none" />
+  </svg>
+)
+
 export const IconNotebook = ({ className }: IconProps) => (
   <svg {...base} className={className}>
     <path d="M7 4h11a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />

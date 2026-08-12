@@ -1,7 +1,7 @@
 import { newId } from '../lib/id'
 import { htmlToText } from '../lib/text'
 import type { CarnetsState, Page, Section } from '../types'
-import { STATE_VERSION } from './storage'
+import { STATE_VERSION } from './persistence'
 
 /**
  * Le classeur du premier lancement : un bloc-notes, deux sections, trois pages
