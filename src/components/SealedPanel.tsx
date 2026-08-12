@@ -69,6 +69,12 @@ export function SealedPanel({
           Le contenu est chiffré. Saisissez le mot de passe pour le lire et le modifier.
         </p>
 
+        {vault.autoRelockedAt !== null && (
+          <p className="sealed__notice">
+            Reverrouillé automatiquement après 5 minutes sans activité.
+          </p>
+        )}
+
         <input
           ref={input}
           className="field__input sealed__input"

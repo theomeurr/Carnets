@@ -117,7 +117,10 @@ Le titre est chiffré avec le corps : une page verrouillée s'affiche « Page
 verrouillée », sans rien laisser deviner. Une page verrouillée et fermée est
 **écartée de la recherche** — ne pas l'afficher du tout, même comme résultat
 masqué, évite de révéler qu'un mot recherché s'y trouve. Le déverrouillage vit
-en mémoire (`useVault.ts`) : recharger la page referme tout.
+en mémoire (`useVault.ts`) : recharger la page referme tout, et **cinq minutes
+sans activité** referment aussi. Le compte à rebours repart à la moindre frappe,
+au moindre clic ou défilement — c'est l'inactivité continue qui est mesurée, pas
+le temps écoulé depuis l'ouverture.
 
 **Un seul verrou par branche.** Protéger un bloc-notes dont une section est
 déjà protégée est refusé, avec l'explication. Sans cette règle, atteindre une

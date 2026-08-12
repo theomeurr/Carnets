@@ -1,4 +1,12 @@
-import { useCallback, useMemo, useRef, useState, type Dispatch, type RefObject } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+} from 'react'
 import {
   checkVerifier,
   decrypt,
@@ -26,9 +34,36 @@ interface OpenLock {
   content: Map<Id, PageContent>
 }
 
+/**
+ * Inactivité tolérée avant que tout se referme. Un onglet laissé ouvert sur une
+ * note déverrouillée finit par se reverrouiller tout seul.
+ */
+export const IDLE_LIMIT_MS = 5 * 60_000
+
+/** Fréquence de la vérification : borne le dépassement à quelques secondes. */
+const IDLE_CHECK_MS = 5_000
+
+/**
+ * Ce qui compte comme présence. Le défilement est écouté en capture, car il ne
+ * remonte pas jusqu'à la fenêtre depuis une colonne qui défile.
+ */
+const ACTIVITY_EVENTS = [
+  'pointerdown',
+  'pointermove',
+  'keydown',
+  'wheel',
+  'touchstart',
+  'scroll',
+] as const
+
 export interface Vault {
   /** Les verrous ouverts dans cette session, par identifiant de cible. */
   openLocks: ReadonlySet<Id>
+  /**
+   * Renseigné quand c'est l'inactivité qui a refermé, et non l'utilisateur :
+   * l'interface peut alors expliquer pourquoi la note s'est refermée seule.
+   */
+  autoRelockedAt: number | null
   /**
    * Le contenu lisible d'une page : le sien si elle est en clair, celui de la
    * session si elle est déverrouillée, et `null` si elle est fermée.
@@ -52,11 +87,44 @@ export interface Vault {
  */
 export function useVault(latest: RefObject<CarnetsState>, dispatch: Dispatch<Action>): Vault {
   const [open, setOpen] = useState<Map<Id, OpenLock>>(() => new Map())
+  const [autoRelockedAt, setAutoRelockedAt] = useState<number | null>(null)
 
   // Miroir synchrone, pour les fonctions asynchrones qui ne peuvent pas
   // attendre le prochain rendu pour connaître l'état des verrous.
   const openRef = useRef(open)
   openRef.current = open
+
+  // ----- Reverrouillage après inactivité -----
+
+  const lastActivity = useRef(Date.now())
+
+  useEffect(() => {
+    // Rien d'ouvert : pas de minuterie à faire tourner.
+    if (open.size === 0) return
+
+    // Ouvrir un verrou est en soi une activité : on repart du moment présent.
+    lastActivity.current = Date.now()
+    const bump = () => {
+      lastActivity.current = Date.now()
+    }
+    for (const type of ACTIVITY_EVENTS) {
+      window.addEventListener(type, bump, { passive: true, capture: true })
+    }
+
+    const timer = setInterval(() => {
+      if (Date.now() - lastActivity.current < IDLE_LIMIT_MS) return
+      // Les clés et les textes en clair sont lâchés : il n'en reste rien.
+      setOpen((previous) => (previous.size === 0 ? previous : new Map()))
+      setAutoRelockedAt(Date.now())
+    }, IDLE_CHECK_MS)
+
+    return () => {
+      for (const type of ACTIVITY_EVENTS) {
+        window.removeEventListener(type, bump, { capture: true })
+      }
+      clearInterval(timer)
+    }
+  }, [open.size])
 
   const reveal = useCallback(
     (page: Page): PageContent | null => {
@@ -101,6 +169,7 @@ export function useVault(latest: RefObject<CarnetsState>, dispatch: Dispatch<Act
       }
 
       dispatch({ type: 'lock/add', lock, pages: sealed })
+      setAutoRelockedAt(null)
       // On reste ouvert juste après avoir posé le verrou : demander le mot de
       // passe à quelqu'un qui vient de le choisir n'apprendrait rien à personne.
       setOpen((previous) => new Map(previous).set(id, { key, content }))
@@ -130,6 +199,7 @@ export function useVault(latest: RefObject<CarnetsState>, dispatch: Dispatch<Act
       }
 
       setOpen((previous) => new Map(previous).set(lockId, { key, content }))
+      setAutoRelockedAt(null)
       return true
     },
     [latest],
@@ -137,6 +207,8 @@ export function useVault(latest: RefObject<CarnetsState>, dispatch: Dispatch<Act
 
   /** Referme : la clé et les textes en clair sont lâchés, il n'en reste rien. */
   const relock = useCallback((lockId?: Id) => {
+    // Refermer soi-même n'a pas besoin d'être expliqué.
+    setAutoRelockedAt(null)
     setOpen((previous) => {
       if (!lockId) return previous.size === 0 ? previous : new Map()
       if (!previous.has(lockId)) return previous
@@ -197,7 +269,7 @@ export function useVault(latest: RefObject<CarnetsState>, dispatch: Dispatch<Act
   const openLocks = useMemo(() => new Set(open.keys()), [open])
 
   return useMemo(
-    () => ({ openLocks, reveal, protect, unlock, relock, unprotect, seal }),
-    [openLocks, reveal, protect, unlock, relock, unprotect, seal],
+    () => ({ openLocks, autoRelockedAt, reveal, protect, unlock, relock, unprotect, seal }),
+    [openLocks, autoRelockedAt, reveal, protect, unlock, relock, unprotect, seal],
   )
 }

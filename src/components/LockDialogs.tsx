@@ -173,7 +173,8 @@ export function UnlockDialog({ name, scope, onSubmit, onClose }: UnlockProps) {
         </label>
         {error && <p className="field__error">{error}</p>}
         <p className="dialog-lead" style={{ marginTop: 12 }}>
-          Le déverrouillage dure le temps de cette session : recharger la page referme tout.
+          Le déverrouillage dure le temps de cette session : recharger la page, ou rester 5 minutes
+          sans rien faire, referme tout.
         </p>
       </form>
     </Modal>

@@ -27,7 +27,7 @@ export function TopBar({ onSearch }: { onSearch: () => void }) {
           type="button"
           className="topbar__relock"
           onClick={() => vault.relock()}
-          title="Referme tous les verrous ouverts et oublie les clés"
+          title="Referme tous les verrous ouverts et oublie les clés. Se fait aussi tout seul après 5 minutes sans activité."
         >
           <IconLock />
           Tout verrouiller
