@@ -1,65 +1,134 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
 import { nextColor } from '../lib/colors'
 import { newId } from '../lib/id'
-import type { Id, Notebook, Page, Section } from '../types'
-import { CarnetsContext, type CarnetsApi, type SaveStatus } from './context'
+import type { CarnetsState, Id, Notebook, Page, Section } from '../types'
+import { CarnetsContext, type CarnetsApi, type SaveState } from './context'
+import { describeFailure, openStore, STATE_VERSION, type Driver } from './persistence'
+import { unchanged } from './persistence/diff'
 import { reducer } from './reducer'
 import { seed } from './seed'
-import { load, save } from './storage'
 
-/** Délai d'inactivité avant écriture sur disque — assez court pour être invisible. */
+/** Délai d'inactivité avant écriture — assez court pour être invisible. */
 const SAVE_DELAY_MS = 400
 
+const EMPTY: CarnetsState = {
+  version: STATE_VERSION,
+  notebooks: [],
+  sections: [],
+  pages: [],
+  selection: { notebookId: null, sectionId: null, pageId: null },
+}
+
 /**
- * Détient l'état du classeur et l'enregistrement automatique. L'écriture est
- * différée : on repousse le minuteur à chaque frappe et on écrit dès que la
- * main s'arrête, plutôt que de sérialiser tout le classeur à chaque caractère.
+ * Détient l'état du classeur et son enregistrement. L'écriture est différée :
+ * on repousse le minuteur à chaque frappe et on écrit dès que la main s'arrête,
+ * puis le pilote ne touche que les entrées réellement modifiées.
  */
 export function CarnetsProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, null, () => load() ?? seed())
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved')
-  const [savedAt, setSavedAt] = useState<number | null>(null)
+  const [state, dispatch] = useReducer(reducer, EMPTY)
+  const [ready, setReady] = useState(false)
+  const [save, setSave] = useState<SaveState>({
+    status: 'saved',
+    at: null,
+    reason: null,
+    driver: null,
+  })
 
   // Le dernier état connu, pour que le minuteur écrive la version la plus
   // récente même si d'autres frappes sont arrivées entre-temps.
   const latest = useRef(state)
   latest.current = state
 
-  const started = useRef(false)
+  const driver = useRef<Driver | null>(null)
+  /** Le dernier état réellement écrit : c'est la base de comparaison du diff. */
+  const persisted = useRef<CarnetsState | null>(null)
+  /** Les écritures se suivent à la queue leu leu, jamais en parallèle. */
+  const queue = useRef<Promise<void>>(Promise.resolve())
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ----- Ouverture du stockage -----
 
   useEffect(() => {
-    // Le premier passage ne fait qu'installer le jeu de départ : rien à annoncer.
-    if (!started.current) {
-      started.current = true
-      save(latest.current)
-      return
+    let cancelled = false
+    openStore().then(({ driver: opened, state: stored }) => {
+      if (cancelled) return
+      driver.current = opened
+      // Sans classeur relu, on sème — et `persisted` reste nul, ce qui fera
+      // écrire le jeu de départ en entier à la première sauvegarde.
+      persisted.current = stored
+      dispatch({ type: 'state/hydrate', state: stored ?? seed() })
+      setSave((current) => ({ ...current, driver: opened.kind }))
+      setReady(true)
+    })
+    return () => {
+      cancelled = true
     }
-    setSaveStatus('saving')
-    const timer = setTimeout(() => {
-      save(latest.current)
-      setSavedAt(Date.now())
-      setSaveStatus('saved')
-    }, SAVE_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [state.notebooks, state.sections, state.pages])
+  }, [])
+
+  // ----- Enregistrement -----
+
+  const flush = useCallback(() => {
+    if (timer.current) {
+      clearTimeout(timer.current)
+      timer.current = null
+    }
+    if (!driver.current) return
+
+    queue.current = queue.current.then(async () => {
+      const target = latest.current
+      // Rien n'a bougé depuis la dernière écriture réussie.
+      if (unchanged(persisted.current, target)) return
+      try {
+        await driver.current!.write(persisted.current, target)
+        persisted.current = target
+        setSave((current) => ({ ...current, status: 'saved', at: Date.now(), reason: null }))
+      } catch (error) {
+        // On ne met pas `persisted` à jour : la prochaine tentative réessaiera
+        // d'écrire les mêmes modifications, sans les perdre.
+        setSave((current) => ({ ...current, status: 'error', reason: describeFailure(error) }))
+      }
+    })
+  }, [])
+
+  const schedule = useCallback(
+    (announce: boolean) => {
+      if (!ready || unchanged(persisted.current, latest.current)) return
+      if (announce) setSave((current) => ({ ...current, status: 'saving' }))
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = setTimeout(flush, SAVE_DELAY_MS)
+    },
+    [ready, flush],
+  )
+
+  useEffect(() => {
+    schedule(true)
+  }, [state.notebooks, state.sections, state.pages, schedule])
 
   // La navigation est mémorisée elle aussi, mais sans indicateur : rouvrir la
   // dernière page consultée n'est pas une modification du contenu.
   useEffect(() => {
-    const timer = setTimeout(() => save(latest.current), SAVE_DELAY_MS)
-    return () => clearTimeout(timer)
-  }, [state.selection])
+    schedule(false)
+  }, [state.selection, schedule])
 
-  // Un onglet fermé au milieu d'une frappe ne doit rien perdre.
+  // Quitter la page écrit immédiatement ce qui reste en attente. IndexedDB étant
+  // asynchrone, la transaction n'est pas garantie de se terminer si l'onglet est
+  // tué net — d'où le déclenchement dès la mise en arrière-plan, bien avant la
+  // fermeture, plutôt qu'au seul `beforeunload`.
   useEffect(() => {
-    const flush = () => save(latest.current)
-    window.addEventListener('beforeunload', flush)
-    document.addEventListener('visibilitychange', flush)
-    return () => {
-      window.removeEventListener('beforeunload', flush)
-      document.removeEventListener('visibilitychange', flush)
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flush()
     }
-  }, [])
+    document.addEventListener('visibilitychange', onHide)
+    window.addEventListener('pagehide', flush)
+    window.addEventListener('beforeunload', flush)
+    return () => {
+      document.removeEventListener('visibilitychange', onHide)
+      window.removeEventListener('pagehide', flush)
+      window.removeEventListener('beforeunload', flush)
+    }
+  }, [flush])
+
+  // ----- Actions -----
 
   // Un bloc-notes neuf arrive avec une section et une page : on peut écrire
   // tout de suite, sans avoir à créer les deux niveaux à la main.
@@ -114,8 +183,7 @@ export function CarnetsProvider({ children }: { children: ReactNode }) {
   const api = useMemo<CarnetsApi>(
     () => ({
       state,
-      saveStatus,
-      savedAt,
+      save,
       addNotebook,
       renameNotebook: (id, name) => dispatch({ type: 'notebook/rename', id, name }),
       recolorNotebook: (id, color) => dispatch({ type: 'notebook/recolor', id, color }),
@@ -131,10 +199,23 @@ export function CarnetsProvider({ children }: { children: ReactNode }) {
       removePage: (id) => dispatch({ type: 'page/remove', id }),
       select: (patch) => dispatch({ type: 'select', patch }),
     }),
-    [state, saveStatus, savedAt, addNotebook, addSection, addPage, claimNewPageFocus],
+    [state, save, addNotebook, addSection, addPage, claimNewPageFocus],
   )
 
+  // Tant que le classeur n'est pas relu, l'interface n'a rien de sensé à
+  // montrer : afficher des colonnes vides ferait croire à des notes perdues.
+  if (!ready) return <BootScreen />
+
   return <CarnetsContext.Provider value={api}>{children}</CarnetsContext.Provider>
+}
+
+function BootScreen() {
+  return (
+    <div className="boot" role="status" aria-live="polite">
+      <span className="boot__spinner" aria-hidden="true" />
+      <p>Ouverture de vos carnets…</p>
+    </div>
+  )
 }
 
 /** Une page neuve : sans titre, sans contenu — l'éditeur y place le curseur. */

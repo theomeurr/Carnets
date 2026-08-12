@@ -1,7 +1,19 @@
 import { createContext } from 'react'
 import type { CarnetsState, Id, Notebook, Page, Section, Selection } from '../types'
 
-export type SaveStatus = 'saved' | 'saving'
+import type { DriverKind } from './persistence'
+
+export type SaveStatus = 'saved' | 'saving' | 'error'
+
+export interface SaveState {
+  status: SaveStatus
+  /** Dernier enregistrement réussi. */
+  at: number | null
+  /** Renseigné quand `status` vaut `error` : ce qui a empêché l'écriture. */
+  reason: string | null
+  /** Le support réellement utilisé — IndexedDB, ou le repli localStorage. */
+  driver: DriverKind | null
+}
 
 /**
  * Tout ce que l'interface a le droit de faire sur le classeur. Les composants
@@ -11,9 +23,8 @@ export type SaveStatus = 'saved' | 'saving'
  */
 export interface CarnetsApi {
   state: CarnetsState
-  saveStatus: SaveStatus
-  /** Dernier enregistrement réussi, pour l'infobulle de l'indicateur. */
-  savedAt: number | null
+  /** Où en est l'enregistrement — y compris quand il échoue. */
+  save: SaveState
 
   addNotebook: () => Notebook
   renameNotebook: (id: Id, name: string) => void

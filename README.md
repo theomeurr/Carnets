@@ -33,8 +33,8 @@ npm run build    # vérification des types + build de production
 ## Sous le capot
 
 React 19 + TypeScript, [Tiptap](https://tiptap.dev) (ProseMirror) pour
-l'éditeur, Vite pour le build. Aucun serveur : les notes vivent dans le
-`localStorage` du navigateur.
+l'éditeur, Vite pour le build. Aucun serveur : les notes vivent dans
+**IndexedDB**, dans le navigateur.
 
 ### Organisation du code
 
@@ -46,8 +46,13 @@ src/
     CarnetsProvider.tsx  l'état, les actions, l'enregistrement automatique
     context.ts           le contrat exposé à l'interface
     useCarnets.ts        accès à l'état et vues dérivées des trois colonnes
-    storage.ts           lecture/écriture localStorage, avec validation
     seed.ts              le classeur du premier lancement
+    persistence/
+      indexeddb.ts       le support principal, une entrée par note
+      localstorage.ts    le repli, et la reprise de l'ancien format
+      diff.ts            ce qui a changé depuis la dernière écriture
+      assemble.ts        validation et remise en ordre à la relecture
+      index.ts           ouverture, choix du support, reprise
   lib/
     search.ts            recherche globale, classement et extraits
     text.ts              repliage des accents, HTML → texte, dates
@@ -70,9 +75,35 @@ triviales : chaque action retire ses données, et la vue rouvre quelque chose de
 valide — jusqu'au classeur vide.
 
 **Deux temporisations pour l'enregistrement.** L'éditeur renvoie son contenu au
-magasin après 300 ms sans frappe ; le magasin écrit dans le navigateur après
-400 ms sans changement. On ne sérialise donc pas le classeur à chaque
-caractère, et une fermeture d'onglet en pleine frappe force l'écriture.
+magasin après 300 ms sans frappe ; le magasin écrit dans IndexedDB après 400 ms
+sans changement. Passer l'onglet en arrière-plan déclenche l'écriture
+immédiatement — IndexedDB étant asynchrone, mieux vaut ne pas attendre la
+fermeture pour commencer.
+
+**On n'écrit que ce qui a changé.** Chaque bloc-notes, section et page est une
+entrée distincte. Avant d'écrire, `diff.ts` compare l'état à la dernière
+version enregistrée **par identité d'objet** : le reducer ne recrée que ce
+qu'il modifie, donc une page dont l'objet n'a pas bougé n'est pas réécrite.
+Taper un caractère touche une page, pas le classeur. Le tout dans une seule
+transaction : jamais de classeur à moitié enregistré.
+
+**L'indicateur ne ment pas.** Une écriture qui échoue — quota plein, base
+fermée — laisse le badge sur « Non enregistré » et ouvre un bandeau explicite,
+au lieu d'afficher « Enregistré » sur des notes qui ne sont nulle part. L'état
+en attente n'est pas considéré comme écrit : la tentative suivante reprend
+l'ensemble des modifications non enregistrées.
+
+**Un repli, et une reprise.** Si IndexedDB est hors service (certains modes de
+navigation privée), l'application bascule sur `localStorage` plutôt que de
+refuser de démarrer. Les notes d'une version antérieure y sont reprises
+automatiquement au premier lancement, puis rangées sous
+`carnets:sauvegarde-v1` — conservées en filet de sécurité, mais plus jamais
+relues, pour que des notes supprimées ne puissent pas ressusciter.
+
+**L'ordre est celui de la création.** Un magasin clé-valeur rend ses entrées
+triées par identifiant : `assemble.ts` rétablit l'ordre à la relecture à partir
+de `createdAt`. Le jour où le glisser-déposer arrivera, il faudra un champ
+d'ordre explicite.
 
 **Un éditeur par page.** La surface d'édition est montée avec l'identifiant de
 la page pour clé : changer de page reconstruit l'éditeur, ce qui garantit un
