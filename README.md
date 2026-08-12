@@ -113,3 +113,45 @@ l'autre.
 **Pas de HTML réinjecté.** Le contenu riche ne traverse que l'éditeur, qui le
 filtre par son schéma. Les aperçus, les extraits de recherche et le surlignage
 sont construits à partir du texte brut et rendus comme des éléments React.
+
+## Déploiement
+
+L'application est entièrement statique : `npm run build` produit un dossier
+`dist/` qu'on peut servir tel quel, sans serveur ni base de données.
+
+Le workflow `.github/workflows/deploy.yml` vérifie (types, lint, tests) puis
+publie sur GitHub Pages à chaque poussée sur `main`. Côté dépôt, il faut
+activer **Settings → Pages → Source : GitHub Actions**, une seule fois.
+
+Deux points à connaître avant de mettre en ligne :
+
+- **HTTPS est nécessaire** pour le verrouillage des notes : `crypto.subtle`
+  n'existe que dans un contexte sécurisé. GitHub Pages, Netlify, Vercel et
+  Cloudflare Pages servent tous en HTTPS ; une adresse `http://` en réseau
+  local, non.
+- **Les notes ne quittent jamais le navigateur.** Elles vivent dans IndexedDB,
+  par origine : chaque visiteur a les siennes, et déployer ne partage aucune
+  donnée. Il n'y a ni compte, ni synchronisation, ni serveur à administrer.
+
+Pour un autre hébergeur, `npm run build` sans la variable `GITHUB_PAGES` place
+le site à la racine (`/`), ce qui convient à Netlify, Vercel ou Cloudflare
+Pages sans autre réglage.
+
+## Contribuer
+
+Les correctifs et les propositions sont les bienvenus. Avant d'ouvrir une pull
+request :
+
+```bash
+npm run lint     # oxlint
+npm test         # tests unitaires
+npm run build    # vérification des types + build
+```
+
+Ces trois commandes sont celles que le workflow exécute ; si elles passent en
+local, l'intégration continue passera aussi.
+
+## Licence
+
+[MIT](LICENSE) — faites-en ce que vous voulez, en gardant la mention de
+copyright.

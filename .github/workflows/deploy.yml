@@ -1,0 +1,56 @@
+# Vérifie puis publie l'application sur GitHub Pages à chaque poussée sur main.
+# Le site est entièrement statique : il n'y a rien à héberger d'autre.
+name: Vérification et déploiement
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Les droits minimaux pour que `deploy-pages` puisse publier.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un seul déploiement à la fois ; les poussées rapprochées s'annulent.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    name: Types, lint et tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - name: Build
+        run: npm run build
+        env:
+          # Active le chemin /Carnets/ attendu par une page de projet.
+          GITHUB_PAGES: 'true'
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deployer:
+    name: Publication
+    # Rien n'est publié tant que les vérifications ne passent pas, et seule
+    # la branche principale est déployée.
+    needs: verifier
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - id: deploiement
+        uses: actions/deploy-pages@v4
