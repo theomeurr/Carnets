@@ -1,0 +1,42 @@
+import { createContext } from 'react'
+import type { CarnetsState, Id, Notebook, Page, Section, Selection } from '../types'
+
+export type SaveStatus = 'saved' | 'saving'
+
+/**
+ * Tout ce que l'interface a le droit de faire sur le classeur. Les composants
+ * ne voient jamais `dispatch` : ils appellent une action nommée, et celles qui
+ * créent quelque chose renvoient l'objet créé pour pouvoir l'enchaîner (passer
+ * la nouvelle section en mode renommage, par exemple).
+ */
+export interface CarnetsApi {
+  state: CarnetsState
+  saveStatus: SaveStatus
+  /** Dernier enregistrement réussi, pour l'infobulle de l'indicateur. */
+  savedAt: number | null
+
+  addNotebook: () => Notebook
+  renameNotebook: (id: Id, name: string) => void
+  recolorNotebook: (id: Id, color: string) => void
+  removeNotebook: (id: Id) => void
+
+  addSection: (notebookId: Id) => Section
+  renameSection: (id: Id, name: string) => void
+  removeSection: (id: Id) => void
+
+  addPage: (sectionId: Id) => Page
+  /**
+   * Vrai une seule fois, pour la page que `addPage` vient de créer : c'est ce
+   * qui autorise l'éditeur à prendre le curseur. Une page vide arrivée avec un
+   * nouveau bloc-notes ou une nouvelle section ne le réclame pas — le curseur
+   * appartient alors au champ de renommage.
+   */
+  claimNewPageFocus: (id: Id) => boolean
+  renamePage: (id: Id, title: string) => void
+  writePage: (id: Id, html: string, text: string) => void
+  removePage: (id: Id) => void
+
+  select: (patch: Partial<Selection>) => void
+}
+
+export const CarnetsContext = createContext<CarnetsApi | null>(null)
