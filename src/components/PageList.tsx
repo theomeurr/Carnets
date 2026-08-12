@@ -3,15 +3,17 @@ import { colorOf } from '../lib/colors'
 import { displayTitle, formatDate } from '../lib/text'
 import { useCarnets, useCurrentView } from '../store/useCarnets'
 import type { Id } from '../types'
-import { IconPlus } from './Icons'
+import { IconLock, IconPlus } from './Icons'
 import { InlineRename } from './InlineRename'
 import { ConfirmDialog } from './Modal'
 import { RowMenu } from './RowMenu'
+import { useLockMenu } from './useLockMenu'
 
 /** Colonne du milieu : les pages de la section ouverte. */
 export function PageList() {
   const carnets = useCarnets()
-  const { select, addPage } = carnets
+  const { select, addPage, vault } = carnets
+  const { controlsFor, dialogs } = useLockMenu()
   const { notebook, section, page: activePage, pages } = useCurrentView()
 
   const [renaming, setRenaming] = useState<Id | null>(null)
@@ -57,10 +59,16 @@ export function PageList() {
           </div>
         ) : (
           <ul className="page-list">
-            {pages.map((page) => (
+            {pages.map((page) => {
+              // `null` = protégée et fermée : ni titre, ni aperçu à montrer.
+              const content = vault.reveal(page)
+              const title = displayTitle(content?.title ?? '')
+              return (
               <li key={page.id}>
                 <div
-                  className={`page-card ${page.id === activePage?.id ? 'is-active' : ''}`}
+                  className={`page-card ${page.id === activePage?.id ? 'is-active' : ''} ${
+                    content ? '' : 'is-sealed'
+                  }`}
                   role="button"
                   tabIndex={0}
                   aria-current={page.id === activePage?.id ? 'true' : undefined}
@@ -74,39 +82,52 @@ export function PageList() {
                   }}
                 >
                   <div className="page-card__head">
-                    {renaming === page.id ? (
+                    {!content && <IconLock className="page-card__lock" />}
+                    {renaming === page.id && content ? (
                       <InlineRename
-                        ariaLabel={`Renommer la page ${displayTitle(page.title)}`}
-                        value={page.title}
-                        onCommit={(title) => {
-                          carnets.renamePage(page.id, title)
+                        ariaLabel={`Renommer la page ${title}`}
+                        value={content.title}
+                        onCommit={(next) => {
+                          carnets.renamePage(page.id, next)
                           setRenaming(null)
                         }}
                         onCancel={() => setRenaming(null)}
                       />
                     ) : (
                       <span
-                        className={`page-card__title ${page.title.trim() ? '' : 'is-untitled'}`}
+                        className={`page-card__title ${
+                          content?.title.trim() ? '' : 'is-untitled'
+                        }`}
                       >
-                        {displayTitle(page.title)}
+                        {content ? title : 'Page verrouillée'}
                       </span>
                     )}
                     <RowMenu
-                      label={`la page ${displayTitle(page.title)}`}
+                      label={content ? `la page ${title}` : 'la page verrouillée'}
                       onRename={() => setRenaming(page.id)}
-                      onDelete={() => setPending({ id: page.id, title: displayTitle(page.title) })}
+                      onDelete={() =>
+                        setPending({ id: page.id, title: content ? title : 'Page verrouillée' })
+                      }
+                      lock={controlsFor('page', page.id, content ? title : 'Page verrouillée')}
                     />
                   </div>
                   <p className="page-card__preview">
-                    {page.text.trim() ? page.text.slice(0, 120) : 'Page vide'}
+                    {!content
+                      ? 'Contenu chiffré — déverrouillez pour lire.'
+                      : content.text.trim()
+                        ? content.text.slice(0, 120)
+                        : 'Page vide'}
                   </p>
                   <p className="page-card__date">{formatDate(page.updatedAt)}</p>
                 </div>
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
       </div>
+
+      {dialogs}
 
       {pending && (
         <ConfirmDialog

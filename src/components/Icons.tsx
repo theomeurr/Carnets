@@ -79,6 +79,22 @@ export const IconCloud = ({ className }: IconProps) => (
   </svg>
 )
 
+export const IconLock = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <rect x="5" y="10.5" width="14" height="10" rx="2" />
+    <path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.6 0v2.7" />
+    <circle cx="12" cy="15.5" r="1.1" fill="currentColor" stroke="none" />
+  </svg>
+)
+
+export const IconUnlock = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <rect x="5" y="10.5" width="14" height="10" rx="2" />
+    <path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.2-1.7" />
+    <circle cx="12" cy="15.5" r="1.1" fill="currentColor" stroke="none" />
+  </svg>
+)
+
 export const IconAlert = ({ className }: IconProps) => (
   <svg {...base} className={className}>
     <path d="M12 4.5 2.8 20h18.4zM12 10v4.5" />

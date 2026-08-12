@@ -2,6 +2,7 @@ import { createContext } from 'react'
 import type { CarnetsState, Id, Notebook, Page, Section, Selection } from '../types'
 
 import type { DriverKind } from './persistence'
+import type { Vault } from './useVault'
 
 export type SaveStatus = 'saved' | 'saving' | 'error'
 
@@ -25,6 +26,8 @@ export interface CarnetsApi {
   state: CarnetsState
   /** Où en est l'enregistrement — y compris quand il échoue. */
   save: SaveState
+  /** Les verrous, les clés de la session, et le contenu déchiffré. */
+  vault: Vault
 
   addNotebook: () => Notebook
   renameNotebook: (id: Id, name: string) => void

@@ -1,10 +1,11 @@
 import { useCarnets } from '../store/useCarnets'
-import { IconAlert, IconCheck, IconCloud, IconSearch } from './Icons'
+import { IconAlert, IconCheck, IconCloud, IconLock, IconSearch } from './Icons'
 
 /** Bandeau supérieur : identité, entrée de la recherche, état de l'enregistrement. */
 export function TopBar({ onSearch }: { onSearch: () => void }) {
-  const { state, save } = useCarnets()
+  const { state, save, vault } = useCarnets()
   const pages = state.pages.length
+  const openCount = vault.openLocks.size
 
   return (
     <header className="topbar">
@@ -20,6 +21,19 @@ export function TopBar({ onSearch }: { onSearch: () => void }) {
         </span>
         <kbd className="topbar__kbd">Ctrl K</kbd>
       </button>
+
+      {openCount > 0 && (
+        <button
+          type="button"
+          className="topbar__relock"
+          onClick={() => vault.relock()}
+          title="Referme tous les verrous ouverts et oublie les clés"
+        >
+          <IconLock />
+          Tout verrouiller
+          {openCount > 1 && <span className="topbar__relock-count">{openCount}</span>}
+        </button>
+      )}
 
       <p className={`save-badge is-${save.status}`} aria-live="polite" title={tooltip(save)}>
         {save.status === 'saving' ? (

@@ -3,11 +3,14 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useCallback, useEffect, useRef } from 'react'
 import { colorOf } from '../lib/colors'
+import { lockOfPage } from '../lib/locks'
 import { formatDate } from '../lib/text'
+import type { PageContent } from '../store/useVault'
 import { useCarnets, useCurrentView } from '../store/useCarnets'
 import type { Page } from '../types'
 import { EditorToolbar } from './EditorToolbar'
 import { IconPage, IconPlus } from './Icons'
+import { SealedPanel } from './SealedPanel'
 
 /** Attente d'inactivité avant de renvoyer le contenu au magasin. */
 const WRITE_DELAY_MS = 300
@@ -19,7 +22,8 @@ const WRITE_DELAY_MS = 300
  */
 export function PageEditor() {
   const { notebook, section, page } = useCurrentView()
-  const { addPage } = useCarnets()
+  const { addPage, state, vault } = useCarnets()
+  const content = page ? vault.reveal(page) : null
 
   if (!page) {
     return (
@@ -38,22 +42,37 @@ export function PageEditor() {
     )
   }
 
+  const accent = colorOf(notebook?.color).hex
+  const breadcrumb = [notebook?.name, section?.name].filter(Boolean).join(' › ')
+
+  // Protégée et fermée : on montre le formulaire de déverrouillage à la place
+  // de l'éditeur. Il n'y a de toute façon rien à afficher — le contenu est
+  // chiffré, et la clé n'existe pas dans cette session.
+  const lock = lockOfPage(state, page)
+  if (!content && lock) {
+    return <SealedPanel lock={lock} accent={accent} breadcrumb={breadcrumb} />
+  }
+
   return (
     <PageSurface
       key={page.id}
       page={page}
-      accent={colorOf(notebook?.color).hex}
-      breadcrumb={[notebook?.name, section?.name].filter(Boolean).join(' › ')}
+      content={content ?? { title: page.title, html: page.html, text: page.text }}
+      accent={accent}
+      breadcrumb={breadcrumb}
     />
   )
 }
 
 function PageSurface({
   page,
+  content,
   accent,
   breadcrumb,
 }: {
   page: Page
+  /** Le contenu lisible : celui de la page, ou celui déchiffré pour la session. */
+  content: PageContent
   accent: string
   breadcrumb: string
 }) {
@@ -91,7 +110,7 @@ function PageSurface({
       }),
       Placeholder.configure({ placeholder: 'Commencez à écrire…' }),
     ],
-    content: page.html,
+    content: content.html,
     editorProps: {
       attributes: {
         class: 'prose',
@@ -138,7 +157,7 @@ function PageSurface({
     if (!element) return
     element.style.height = 'auto'
     element.style.height = `${element.scrollHeight}px`
-  }, [page.title])
+  }, [content.title])
 
   return (
     <section className="editor" aria-label="Éditeur" style={{ '--accent': accent } as React.CSSProperties}>
@@ -153,7 +172,7 @@ function PageSurface({
             rows={1}
             placeholder="Page sans titre"
             aria-label="Titre de la page"
-            value={page.title}
+            value={content.title}
             onChange={(event) => renamePage(page.id, event.target.value.replace(/\n/g, ''))}
             onKeyDown={(event) => {
               // Entrée depuis le titre descend dans le corps de la page.
@@ -164,7 +183,7 @@ function PageSurface({
             }}
           />
           <p className="editor__meta">
-            Modifié {formatDate(page.updatedAt)} · {countWords(page.text)}
+            Modifié {formatDate(page.updatedAt)} · {countWords(content.text)}
           </p>
           <EditorContent editor={editor} className="editor__content" />
         </div>

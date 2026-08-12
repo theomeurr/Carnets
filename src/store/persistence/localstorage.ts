@@ -71,7 +71,13 @@ function readKey(key: string): CarnetsState | null {
     ) {
       return null
     }
-    return assemble(parsed.notebooks, parsed.sections, parsed.pages, parsed.selection)
+    return assemble(
+      parsed.notebooks,
+      parsed.sections,
+      parsed.pages,
+      Array.isArray(parsed.locks) ? parsed.locks : [],
+      parsed.selection,
+    )
   } catch {
     return null
   }

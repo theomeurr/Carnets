@@ -70,6 +70,7 @@ export function seed(): CarnetsState {
     notebooks: [notebook],
     sections: [prise, idees],
     pages,
+    locks: [],
     selection: { notebookId: notebook.id, sectionId: prise.id, pageId: pages[0].id },
   }
 }
@@ -82,6 +83,7 @@ function page(sectionId: string, title: string, now: number, lines: string[]): P
     title,
     html,
     text: htmlToText(html),
+    cipher: null,
     createdAt: now,
     updatedAt: now,
   }

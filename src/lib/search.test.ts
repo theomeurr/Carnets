@@ -9,6 +9,7 @@ function classeur(): CarnetsState {
     title,
     html: `<p>${text}</p>`,
     text,
+    cipher: null,
     createdAt: 0,
     updatedAt: Number(id.slice(1)),
   })
@@ -23,6 +24,7 @@ function classeur(): CarnetsState {
       { id: 's1', notebookId: 'n1', name: 'Réunions', createdAt: 0 },
       { id: 's2', notebookId: 'n2', name: 'Cuisine', createdAt: 0 },
     ],
+    locks: [],
     pages: [
       page('p1', 's1', 'Réunion budget', 'Le budget est validé pour le trimestre.'),
       page('p2', 's1', 'Point équipe', 'On parle du budget la semaine prochaine.'),

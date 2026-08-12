@@ -1,4 +1,4 @@
-import type { CarnetsState, Id, Notebook, Page, Section, Selection } from '../types'
+import type { CarnetsState, Id, Lock, Notebook, Page, Section, Selection } from '../types'
 
 export type Action =
   | { type: 'notebook/add'; notebook: Notebook; section: Section; page: Page }
@@ -11,9 +11,15 @@ export type Action =
   | { type: 'page/add'; page: Page }
   | { type: 'page/rename'; id: Id; title: string; now: number }
   | { type: 'page/write'; id: Id; html: string; text: string; now: number }
+  /** Écriture d'une page sous verrou : seul le chiffré change. */
+  | { type: 'page/sealed'; id: Id; cipher: string; now: number }
   | { type: 'page/remove'; id: Id }
   | { type: 'select'; patch: Partial<Selection> }
   | { type: 'state/hydrate'; state: CarnetsState }
+  /** Pose le verrou et remplace d'un bloc les pages par leur version chiffrée. */
+  | { type: 'lock/add'; lock: Lock; pages: Page[] }
+  /** Retire le verrou et rend les pages en clair. */
+  | { type: 'lock/remove'; id: Id; pages: Page[] }
 
 export function reducer(state: CarnetsState, action: Action): CarnetsState {
   switch (action.type) {
@@ -125,8 +131,33 @@ export function reducer(state: CarnetsState, action: Action): CarnetsState {
       })
     }
 
+    case 'page/sealed': {
+      const page = state.pages.find((p) => p.id === action.id)
+      if (!page || page.cipher === action.cipher) return state
+      return settle({
+        ...state,
+        pages: state.pages.map((p) =>
+          p.id === action.id ? { ...p, cipher: action.cipher, updatedAt: action.now } : p,
+        ),
+      })
+    }
+
     case 'page/remove':
       return settle({ ...state, pages: state.pages.filter((p) => p.id !== action.id) })
+
+    case 'lock/add':
+      return settle({
+        ...state,
+        locks: [...state.locks, action.lock],
+        pages: replacePages(state.pages, action.pages),
+      })
+
+    case 'lock/remove':
+      return settle({
+        ...state,
+        locks: state.locks.filter((lock) => lock.id !== action.id),
+        pages: replacePages(state.pages, action.pages),
+      })
 
     case 'select':
       return settle({ ...state, selection: { ...state.selection, ...action.patch } })
@@ -134,6 +165,17 @@ export function reducer(state: CarnetsState, action: Action): CarnetsState {
     default:
       return state
   }
+}
+
+/**
+ * Remplace en bloc un lot de pages, en conservant l'ordre existant. Les pages
+ * absentes du lot gardent leur identité d'objet : le diff de l'enregistrement
+ * n'écrira donc que celles qui ont vraiment changé.
+ */
+function replacePages(pages: Page[], replacements: Page[]): Page[] {
+  if (replacements.length === 0) return pages
+  const byId = new Map(replacements.map((page) => [page.id, page]))
+  return pages.map((page) => byId.get(page.id) ?? page)
 }
 
 /**
@@ -161,13 +203,23 @@ function settle(state: CarnetsState): CarnetsState {
     pageId = sectionPages[0]?.id ?? null
   }
 
+  // Un verrou dont la cible a été supprimée n'a plus rien à protéger.
+  const locks = state.locks.filter((lock) => targetExists(state, lock))
+
   const current = state.selection
   if (
+    locks.length === state.locks.length &&
     current.notebookId === notebookId &&
     current.sectionId === sectionId &&
     current.pageId === pageId
   ) {
     return state
   }
-  return { ...state, selection: { notebookId, sectionId, pageId } }
+  return { ...state, locks, selection: { notebookId, sectionId, pageId } }
+}
+
+function targetExists(state: CarnetsState, lock: { scope: string; id: string }): boolean {
+  if (lock.scope === 'notebook') return state.notebooks.some((n) => n.id === lock.id)
+  if (lock.scope === 'section') return state.sections.some((s) => s.id === lock.id)
+  return state.pages.some((p) => p.id === lock.id)
 }

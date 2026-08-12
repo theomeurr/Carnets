@@ -1,5 +1,5 @@
 import { htmlToText } from '../../lib/text'
-import type { CarnetsState, Notebook, Page, Section, Selection } from '../../types'
+import type { CarnetsState, Lock, Notebook, Page, Section, Selection } from '../../types'
 import { STATE_VERSION } from './types'
 
 /**
@@ -16,6 +16,7 @@ export function assemble(
   rawNotebooks: unknown[],
   rawSections: unknown[],
   rawPages: unknown[],
+  rawLocks: unknown[],
   rawSelection: unknown,
 ): CarnetsState | null {
   const notebooks = rawNotebooks.filter(isNotebook).sort(byCreation)
@@ -36,16 +37,29 @@ export function assemble(
     // version antérieure reste lisible et cherchable.
     .map((p) => ({
       ...p,
-      text: typeof p.text === 'string' ? p.text : htmlToText(p.html),
+      // Une page chiffrée n'a pas de texte à réparer : son contenu est dans
+      // `cipher`, et le reste doit rester vide.
+      text: typeof p.text === 'string' ? p.text : p.cipher ? '' : htmlToText(p.html),
+      cipher: typeof p.cipher === 'string' ? p.cipher : null,
       createdAt: typeof p.createdAt === 'number' ? p.createdAt : 0,
       updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : 0,
     }))
+
+  // Un verrou qui ne désigne plus rien est écarté : il bloquerait un élément
+  // inexistant, et `settle` le retirerait de toute façon au premier passage.
+  const pageIds = new Set(pages.map((p) => p.id))
+  const locks = rawLocks.filter(isLock).filter((lock) => {
+    if (lock.scope === 'notebook') return notebookIds.has(lock.id)
+    if (lock.scope === 'section') return sectionIds.has(lock.id)
+    return pageIds.has(lock.id)
+  })
 
   return {
     version: STATE_VERSION,
     notebooks,
     sections,
     pages,
+    locks,
     // Une sélection incohérente est rattrapée au premier passage du reducer.
     selection: readSelection(rawSelection),
   }
@@ -74,6 +88,17 @@ export function isNotebook(value: unknown): value is Notebook {
 export function isSection(value: unknown): value is Section {
   const s = value as Partial<Section>
   return typeof s?.id === 'string' && typeof s.name === 'string' && typeof s.notebookId === 'string'
+}
+
+export function isLock(value: unknown): value is Lock {
+  const l = value as Partial<Lock>
+  return (
+    typeof l?.id === 'string' &&
+    (l.scope === 'notebook' || l.scope === 'section' || l.scope === 'page') &&
+    typeof l.salt === 'string' &&
+    typeof l.iterations === 'number' &&
+    typeof l.verifier === 'string'
+  )
 }
 
 export function isPage(value: unknown): value is Page {

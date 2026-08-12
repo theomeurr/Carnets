@@ -15,6 +15,7 @@ const page = (id: string, sectionId: string): Page => ({
   title: id,
   html: '',
   text: '',
+  cipher: null,
   createdAt: 0,
   updatedAt: 0,
 })
@@ -26,6 +27,7 @@ function classeur(): CarnetsState {
     notebooks: [notebook('n1'), notebook('n2')],
     sections: [section('s1', 'n1'), section('s2', 'n1'), section('s3', 'n2')],
     pages: [page('p1', 's1'), page('p2', 's1'), page('p3', 's2'), page('p4', 's3')],
+    locks: [],
     selection: { notebookId: 'n1', sectionId: 's1', pageId: 'p1' },
   }
 }
