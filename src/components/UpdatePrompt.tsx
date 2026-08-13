@@ -18,7 +18,7 @@ export function UpdatePrompt() {
   return (
     <div className="update-prompt" role="status">
       <IconCheck className="update-prompt__icon" />
-      <p className="update-prompt__text">Une nouvelle version de Carnets est prête.</p>
+      <p className="update-prompt__text">Une nouvelle version de Folio est prête.</p>
       <button
         type="button"
         className="update-prompt__action"

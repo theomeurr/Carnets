@@ -17,7 +17,7 @@ import {
   PBKDF2_ITERATIONS,
 } from '../lib/crypto'
 import { lockObstacle, lockOfPage, pagesUnder } from '../lib/locks'
-import type { CarnetsState, Id, Lock, LockScope, Page } from '../types'
+import type { FolioState, Id, Lock, LockScope, Page } from '../types'
 import type { Action } from './reducer'
 
 /** Le titre et le contenu d'une page, en clair. */
@@ -85,7 +85,7 @@ export interface Vault {
  * clés et les textes en clair disparaissent au rechargement de la page, ce qui
  * fait que tout se reverrouille tout seul.
  */
-export function useVault(latest: RefObject<CarnetsState>, dispatch: Dispatch<Action>): Vault {
+export function useVault(latest: RefObject<FolioState>, dispatch: Dispatch<Action>): Vault {
   const [open, setOpen] = useState<Map<Id, OpenLock>>(() => new Map())
   const [autoRelockedAt, setAutoRelockedAt] = useState<number | null>(null)
 

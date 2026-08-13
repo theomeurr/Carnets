@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { describeScope } from '../lib/locks'
-import { useCarnets } from '../store/useCarnets'
+import { useFolio } from '../store/useFolio'
 import type { Lock } from '../types'
 import { IconLock } from './Icons'
 
@@ -18,7 +18,7 @@ export function SealedPanel({
   accent: string
   breadcrumb: string
 }) {
-  const { state, vault } = useCarnets()
+  const { state, vault } = useFolio()
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -96,7 +96,7 @@ export function SealedPanel({
   )
 }
 
-function targetName(state: ReturnType<typeof useCarnets>['state'], lock: Lock): string {
+function targetName(state: ReturnType<typeof useFolio>['state'], lock: Lock): string {
   if (lock.scope === 'notebook') {
     return state.notebooks.find((n) => n.id === lock.id)?.name ?? ''
   }

@@ -1,9 +1,9 @@
-import { useCarnets } from '../store/useCarnets'
+import { useFolio } from '../store/useFolio'
 import { IconAlert, IconCheck, IconCloud, IconLock, IconSearch } from './Icons'
 
 /** Bandeau supérieur : identité, entrée de la recherche, état de l'enregistrement. */
 export function TopBar({ onSearch }: { onSearch: () => void }) {
-  const { state, save, vault } = useCarnets()
+  const { state, save, vault } = useFolio()
   const pages = state.pages.length
   const openCount = vault.openLocks.size
 
@@ -11,7 +11,7 @@ export function TopBar({ onSearch }: { onSearch: () => void }) {
     <header className="topbar">
       <div className="topbar__brand">
         <span className="topbar__mark" aria-hidden="true" />
-        <span className="topbar__name">Carnets</span>
+        <span className="topbar__name">Folio</span>
       </div>
 
       <button type="button" className="topbar__search" onClick={onSearch}>
@@ -55,7 +55,7 @@ function label(status: 'saved' | 'saving' | 'error'): string {
   return 'Enregistré'
 }
 
-function tooltip({ status, at, reason, driver }: ReturnType<typeof useCarnets>['save']): string {
+function tooltip({ status, at, reason, driver }: ReturnType<typeof useFolio>['save']): string {
   if (status === 'error') return reason ?? 'Cause inconnue.'
   const support = driver === 'localstorage' ? 'le stockage de secours' : 'ce navigateur'
   if (!at) return `Vos notes sont enregistrées dans ${support}`

@@ -1,7 +1,7 @@
-import type { CarnetsState, Id, Lock, LockScope, Page } from '../types'
+import type { FolioState, Id, Lock, LockScope, Page } from '../types'
 
 /** Le verrou posé exactement sur cette cible, s'il y en a un. */
-export function lockOn(state: CarnetsState, scope: LockScope, id: Id): Lock | undefined {
+export function lockOn(state: FolioState, scope: LockScope, id: Id): Lock | undefined {
   return state.locks.find((lock) => lock.scope === scope && lock.id === id)
 }
 
@@ -10,7 +10,7 @@ export function lockOn(state: CarnetsState, scope: LockScope, id: Id): Lock | un
  * son bloc-notes. L'imbrication étant interdite (voir `lockObstacle`), il ne
  * peut y en avoir qu'un — pas de cascade de mots de passe à saisir.
  */
-export function lockOfPage(state: CarnetsState, page: Page): Lock | undefined {
+export function lockOfPage(state: FolioState, page: Page): Lock | undefined {
   const own = lockOn(state, 'page', page.id)
   if (own) return own
 
@@ -22,7 +22,7 @@ export function lockOfPage(state: CarnetsState, page: Page): Lock | undefined {
 }
 
 /** Toutes les pages qu'un verrou posé sur cette cible protégerait. */
-export function pagesUnder(state: CarnetsState, scope: LockScope, id: Id): Page[] {
+export function pagesUnder(state: FolioState, scope: LockScope, id: Id): Page[] {
   if (scope === 'page') return state.pages.filter((page) => page.id === id)
 
   if (scope === 'section') return state.pages.filter((page) => page.sectionId === id)
@@ -38,7 +38,7 @@ export function pagesUnder(state: CarnetsState, scope: LockScope, id: Id): Page[
  * refuse toute imbrication : un mot de passe par branche de l'arbre, jamais
  * deux à enchaîner pour atteindre une note.
  */
-export function lockObstacle(state: CarnetsState, scope: LockScope, id: Id): string | null {
+export function lockObstacle(state: FolioState, scope: LockScope, id: Id): string | null {
   if (lockOn(state, scope, id)) return 'Cet élément est déjà protégé.'
 
   // Un ancêtre déjà protégé ?
@@ -67,7 +67,7 @@ export function lockObstacle(state: CarnetsState, scope: LockScope, id: Id): str
 }
 
 /** Vrai si `lock` porte sur quelque chose situé à l'intérieur de la cible. */
-function coveredBy(state: CarnetsState, scope: LockScope, id: Id, lock: Lock): boolean {
+function coveredBy(state: FolioState, scope: LockScope, id: Id, lock: Lock): boolean {
   if (lock.scope === scope && lock.id === id) return false
 
   if (scope === 'notebook') {

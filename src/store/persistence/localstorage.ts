@@ -1,9 +1,13 @@
-import type { CarnetsState } from '../../types'
+import type { FolioState } from '../../types'
 import { assemble } from './assemble'
 import { unchanged } from './diff'
 import { STATE_VERSION, type Driver } from './types'
 
-/** La clé historique, seule source de la reprise vers IndexedDB. */
+/**
+ * La clé historique, seule source de la reprise vers IndexedDB. Elle garde
+ * l'ancien nom de l'application : c'est sous ce nom que les données existent
+ * déjà chez ceux qui s'en servaient avant.
+ */
 export const LEGACY_KEY = 'carnets:state'
 
 /** Où l'ancien contenu est mis de côté une fois repris, en filet de sécurité. */
@@ -19,11 +23,11 @@ export function openLocalStorage(): Driver {
   return {
     kind: 'localstorage',
 
-    async read(): Promise<CarnetsState | null> {
+    async read(): Promise<FolioState | null> {
       return readKey(LEGACY_KEY)
     },
 
-    async write(previous: CarnetsState | null, next: CarnetsState): Promise<void> {
+    async write(previous: FolioState | null, next: FolioState): Promise<void> {
       if (unchanged(previous, next)) return
       localStorage.setItem(LEGACY_KEY, JSON.stringify({ ...next, version: STATE_VERSION }))
     },
@@ -31,7 +35,7 @@ export function openLocalStorage(): Driver {
 }
 
 /** Relit l'ancien format pour la reprise, sans revendiquer le support. */
-export function readLegacy(): CarnetsState | null {
+export function readLegacy(): FolioState | null {
   return readKey(LEGACY_KEY)
 }
 
@@ -52,7 +56,7 @@ export function archiveLegacy(): void {
   }
 }
 
-function readKey(key: string): CarnetsState | null {
+function readKey(key: string): FolioState | null {
   let raw: string | null = null
   try {
     raw = localStorage.getItem(key)
@@ -62,7 +66,7 @@ function readKey(key: string): CarnetsState | null {
   if (!raw) return null
 
   try {
-    const parsed = JSON.parse(raw) as Partial<CarnetsState>
+    const parsed = JSON.parse(raw) as Partial<FolioState>
     if (parsed?.version !== STATE_VERSION) return null
     if (
       !Array.isArray(parsed.notebooks) ||

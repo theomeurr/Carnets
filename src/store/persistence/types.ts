@@ -1,4 +1,4 @@
-import type { CarnetsState } from '../../types'
+import type { FolioState } from '../../types'
 
 /** Le numéro de format des données enregistrées. */
 export const STATE_VERSION = 1
@@ -13,6 +13,6 @@ export type DriverKind = 'indexeddb' | 'localstorage'
  */
 export interface Driver {
   readonly kind: DriverKind
-  read(): Promise<CarnetsState | null>
-  write(previous: CarnetsState | null, next: CarnetsState): Promise<void>
+  read(): Promise<FolioState | null>
+  write(previous: FolioState | null, next: FolioState): Promise<void>
 }

@@ -21,7 +21,13 @@ const SALT_BYTES = 16
 /** AES-GCM veut un vecteur d'initialisation de 96 bits. */
 const IV_BYTES = 12
 
-/** Texte témoin chiffré à la pose du verrou, pour vérifier un mot de passe. */
+/**
+ * Texte témoin chiffré à la pose du verrou, pour vérifier un mot de passe.
+ *
+ * À ne jamais modifier — le renommage de l'application compris. Ce texte est
+ * chiffré à l'intérieur de chaque verrou déjà posé ; le changer ferait échouer
+ * la comparaison, et **tous les mots de passe existants seraient rejetés**.
+ */
 const VERIFIER_PLAINTEXT = 'carnets:verrou:v1'
 
 export class CryptoUnavailableError extends Error {

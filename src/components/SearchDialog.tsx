@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { colorOf } from '../lib/colors'
 import { highlight, search, type SearchHit } from '../lib/search'
 import { displayTitle, formatDate } from '../lib/text'
-import { useCarnets } from '../store/useCarnets'
+import { useFolio } from '../store/useFolio'
 import { IconSearch } from './Icons'
 
 /**
@@ -11,7 +11,7 @@ import { IconSearch } from './Icons'
  * repositionnant les trois colonnes d'un coup.
  */
 export function SearchDialog({ onClose }: { onClose: () => void }) {
-  const { state, select, vault } = useCarnets()
+  const { state, select, vault } = useFolio()
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
   const listRef = useRef<HTMLUListElement>(null)

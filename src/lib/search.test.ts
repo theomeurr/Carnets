@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { CarnetsState } from '../types'
+import type { FolioState } from '../types'
 import { highlight, search } from './search'
 
-function classeur(): CarnetsState {
+function classeur(): FolioState {
   const page = (id: string, sectionId: string, title: string, text: string) => ({
     id,
     sectionId,

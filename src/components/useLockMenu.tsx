@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { lockObstacle, lockOn, pagesUnder } from '../lib/locks'
-import { useCarnets } from '../store/useCarnets'
+import { useFolio } from '../store/useFolio'
 import type { Id, LockScope } from '../types'
 import { ProtectDialog, UnlockDialog } from './LockDialogs'
 
@@ -25,7 +25,7 @@ export function useLockMenu(): {
   controlsFor: (scope: LockScope, id: Id, name: string) => LockControls
   dialogs: ReactNode
 } {
-  const { state, vault } = useCarnets()
+  const { state, vault } = useFolio()
   const [pending, setPending] = useState<{
     mode: 'protect' | 'unlock'
     scope: LockScope

@@ -1,6 +1,6 @@
 import { newId } from '../lib/id'
 import { htmlToText } from '../lib/text'
-import type { CarnetsState, Page, Section } from '../types'
+import type { FolioState, Page, Section } from '../types'
 import { STATE_VERSION } from './persistence'
 
 /**
@@ -8,7 +8,7 @@ import { STATE_VERSION } from './persistence'
  * qui expliquent l'application en la montrant. Rien ici n'est spécial — tout est
  * modifiable ou supprimable comme n'importe quelle note.
  */
-export function seed(): CarnetsState {
+export function seed(): FolioState {
   const now = Date.now()
   const notebook = {
     id: newId(),
@@ -31,8 +31,8 @@ export function seed(): CarnetsState {
   }
 
   const pages: Page[] = [
-    page(prise.id, 'Bienvenue dans Carnets', now, [
-      '<p>Carnets range vos notes comme un vrai classeur, sur trois niveaux : <strong>bloc-notes</strong> → <strong>sections</strong> → <strong>pages</strong>.</p>',
+    page(prise.id, 'Bienvenue dans Folio', now, [
+      '<p>Folio range vos notes comme un vrai classeur, sur trois niveaux : <strong>bloc-notes</strong> → <strong>sections</strong> → <strong>pages</strong>.</p>',
       '<h2>Les trois colonnes</h2>',
       '<ul>',
       '<li><p>À gauche, vos bloc-notes et les sections de celui qui est ouvert.</p></li>',

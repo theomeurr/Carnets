@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { lockObstacle, lockOfPage, lockOn, pagesUnder } from './locks'
-import type { CarnetsState, Lock, LockScope } from '../types'
+import type { FolioState, Lock, LockScope } from '../types'
 
 const lock = (scope: LockScope, id: string): Lock => ({
   id,
@@ -12,7 +12,7 @@ const lock = (scope: LockScope, id: string): Lock => ({
 })
 
 /** n1 { s1 [p1, p2], s2 [p3] }, n2 { s3 [p4] } */
-function classeur(locks: Lock[] = []): CarnetsState {
+function classeur(locks: Lock[] = []): FolioState {
   const page = (id: string, sectionId: string) => ({
     id,
     sectionId,
@@ -40,7 +40,7 @@ function classeur(locks: Lock[] = []): CarnetsState {
   }
 }
 
-const pageOf = (state: CarnetsState, id: string) => state.pages.find((p) => p.id === id)!
+const pageOf = (state: FolioState, id: string) => state.pages.find((p) => p.id === id)!
 
 describe('portée d’un verrou', () => {
   it('couvre la page visée', () => {

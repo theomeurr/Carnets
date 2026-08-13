@@ -1,4 +1,4 @@
-import type { CarnetsState } from '../../types'
+import type { FolioState } from '../../types'
 
 export interface Change<T> {
   /** Entrées à (ré)écrire : ajoutées ou modifiées. */
@@ -32,7 +32,7 @@ export function changes<T extends { id: string }>(
 }
 
 /** Vrai quand rien n'a bougé : évite d'ouvrir une transaction pour rien. */
-export function unchanged(previous: CarnetsState | null, next: CarnetsState): boolean {
+export function unchanged(previous: FolioState | null, next: FolioState): boolean {
   return (
     previous !== null &&
     previous.notebooks === next.notebooks &&

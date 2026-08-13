@@ -4,8 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   // Chemins relatifs : le site fonctionne où qu'il soit servi — à la racine,
-  // sous /Carnets/ d'une page de projet GitHub Pages, ou dans n'importe quel
-  // sous-dossier. Un chemin absolu obligerait à connaître l'emplacement au
+  // dans le sous-dossier d'une page de projet GitHub Pages, ou n'importe où
+  // ailleurs. Un chemin absolu obligerait à connaître l'emplacement au
   // moment du build, et une page blanche serait le seul signe d'une erreur.
   // C'est sans risque ici : l'application tient en une seule page, sans routeur.
   base: './',
@@ -21,8 +21,8 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'icon.svg'],
 
       manifest: {
-        name: 'Carnets — prise de notes',
-        short_name: 'Carnets',
+        name: 'Folio — prise de notes',
+        short_name: 'Folio',
         description:
           'Prise de notes en bloc-notes, sections et pages. Fonctionne hors ligne, tout reste sur votre appareil.',
         lang: 'fr',

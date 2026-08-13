@@ -72,7 +72,7 @@ export interface Selection {
  * (`notebookId`, `sectionId`). Renommer ou supprimer touche donc une seule
  * entrée, sans avoir à retrouver un chemin dans un arbre.
  */
-export interface CarnetsState {
+export interface FolioState {
   version: number
   notebooks: Notebook[]
   sections: Section[]

@@ -1,4 +1,4 @@
-import type { CarnetsState, Id, Lock, Notebook, Page, Section, Selection } from '../types'
+import type { FolioState, Id, Lock, Notebook, Page, Section, Selection } from '../types'
 
 export type Action =
   | { type: 'notebook/add'; notebook: Notebook; section: Section; page: Page }
@@ -15,13 +15,13 @@ export type Action =
   | { type: 'page/sealed'; id: Id; cipher: string; now: number }
   | { type: 'page/remove'; id: Id }
   | { type: 'select'; patch: Partial<Selection> }
-  | { type: 'state/hydrate'; state: CarnetsState }
+  | { type: 'state/hydrate'; state: FolioState }
   /** Pose le verrou et remplace d'un bloc les pages par leur version chiffrée. */
   | { type: 'lock/add'; lock: Lock; pages: Page[] }
   /** Retire le verrou et rend les pages en clair. */
   | { type: 'lock/remove'; id: Id; pages: Page[] }
 
-export function reducer(state: CarnetsState, action: Action): CarnetsState {
+export function reducer(state: FolioState, action: Action): FolioState {
   switch (action.type) {
     // Le classeur relu du stockage remplace l'état de démarrage. Il repasse par
     // `settle` : la sélection mémorisée peut désigner une page disparue depuis.
@@ -185,7 +185,7 @@ function replacePages(pages: Page[], replacements: Page[]): Page[] {
  * disponible. C'est ce qui permet aux cas de suppression de rester triviaux :
  * chaque action retire ses données et laisse `settle` rouvrir quelque chose.
  */
-function settle(state: CarnetsState): CarnetsState {
+function settle(state: FolioState): FolioState {
   const { notebooks, sections, pages } = state
   let { notebookId, sectionId, pageId } = state.selection
 
@@ -218,7 +218,7 @@ function settle(state: CarnetsState): CarnetsState {
   return { ...state, locks, selection: { notebookId, sectionId, pageId } }
 }
 
-function targetExists(state: CarnetsState, lock: { scope: string; id: string }): boolean {
+function targetExists(state: FolioState, lock: { scope: string; id: string }): boolean {
   if (lock.scope === 'notebook') return state.notebooks.some((n) => n.id === lock.id)
   if (lock.scope === 'section') return state.sections.some((s) => s.id === lock.id)
   return state.pages.some((p) => p.id === lock.id)

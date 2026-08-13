@@ -6,13 +6,13 @@ import { SearchDialog } from './components/SearchDialog'
 import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
 import { UpdatePrompt } from './components/UpdatePrompt'
-import { CarnetsProvider } from './store/CarnetsProvider'
+import { FolioProvider } from './store/FolioProvider'
 
 export default function App() {
   return (
-    <CarnetsProvider>
+    <FolioProvider>
       <Workspace />
-    </CarnetsProvider>
+    </FolioProvider>
   )
 }
 

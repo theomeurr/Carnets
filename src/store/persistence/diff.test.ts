@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CarnetsState } from '../../types'
+import type { FolioState } from '../../types'
 import { changes, unchanged } from './diff'
 
 const entity = (id: string, name = id) => ({ id, name })
@@ -51,7 +51,7 @@ describe('diff des collections', () => {
 })
 
 describe('détection d’absence de changement', () => {
-  const base: CarnetsState = {
+  const base: FolioState = {
     version: 1,
     notebooks: [],
     sections: [],

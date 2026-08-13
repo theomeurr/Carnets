@@ -1,4 +1,4 @@
-import type { CarnetsState } from '../../types'
+import type { FolioState } from '../../types'
 import { openIndexedDb } from './indexeddb'
 import { archiveLegacy, openLocalStorage, readLegacy } from './localstorage'
 import type { Driver } from './types'
@@ -8,7 +8,7 @@ export { STATE_VERSION, type Driver, type DriverKind } from './types'
 export interface Opened {
   driver: Driver
   /** Le classeur relu, ou `null` s'il n'y a rien : l'appelant sème alors. */
-  state: CarnetsState | null
+  state: FolioState | null
   /** Vrai si des notes ont été reprises de l'ancien stockage à cette ouverture. */
   migrated: boolean
 }

@@ -1,8 +1,11 @@
-import type { CarnetsState, Lock, Notebook, Page, Section } from '../../types'
+import type { FolioState, Lock, Notebook, Page, Section } from '../../types'
 import { assemble } from './assemble'
 import { changes, unchanged } from './diff'
 import { STATE_VERSION, type Driver } from './types'
 
+// Le nom de la base garde l'ancien nom de l'application, volontairement :
+// le renommer ferait pointer l'application sur une base vide, et toutes les
+// notes déjà écrites deviendraient invisibles.
 const DB_NAME = 'carnets'
 const DB_VERSION = 2
 
@@ -27,7 +30,7 @@ export async function openIndexedDb(): Promise<Driver> {
   return {
     kind: 'indexeddb',
 
-    async read(): Promise<CarnetsState | null> {
+    async read(): Promise<FolioState | null> {
       const [notebooks, sections, pages, locks, selection] = await Promise.all([
         readAll<Notebook>(db, NOTEBOOKS),
         readAll<Section>(db, SECTIONS),
@@ -39,7 +42,7 @@ export async function openIndexedDb(): Promise<Driver> {
       return assemble(notebooks, sections, pages, locks, selection)
     },
 
-    async write(previous: CarnetsState | null, next: CarnetsState): Promise<void> {
+    async write(previous: FolioState | null, next: FolioState): Promise<void> {
       if (unchanged(previous, next)) return
 
       const notebooks = changes(previous?.notebooks, next.notebooks)

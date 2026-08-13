@@ -1,5 +1,5 @@
 import { htmlToText } from '../../lib/text'
-import type { CarnetsState, Lock, Notebook, Page, Section, Selection } from '../../types'
+import type { FolioState, Lock, Notebook, Page, Section, Selection } from '../../types'
 import { STATE_VERSION } from './types'
 
 /**
@@ -18,7 +18,7 @@ export function assemble(
   rawPages: unknown[],
   rawLocks: unknown[],
   rawSelection: unknown,
-): CarnetsState | null {
+): FolioState | null {
   const notebooks = rawNotebooks.filter(isNotebook).sort(byCreation)
   if (notebooks.length === 0) return null
 

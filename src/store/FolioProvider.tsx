@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Rea
 import { nextColor } from '../lib/colors'
 import { newId } from '../lib/id'
 import { lockOfPage } from '../lib/locks'
-import type { CarnetsState, Id, Notebook, Page, Section } from '../types'
-import { CarnetsContext, type CarnetsApi, type SaveState } from './context'
+import type { FolioState, Id, Notebook, Page, Section } from '../types'
+import { FolioContext, type FolioApi, type SaveState } from './context'
 import { describeFailure, openStore, STATE_VERSION, type Driver } from './persistence'
 import { unchanged } from './persistence/diff'
 import { reducer } from './reducer'
@@ -13,7 +13,7 @@ import { useVault } from './useVault'
 /** Délai d'inactivité avant écriture — assez court pour être invisible. */
 const SAVE_DELAY_MS = 400
 
-const EMPTY: CarnetsState = {
+const EMPTY: FolioState = {
   version: STATE_VERSION,
   notebooks: [],
   sections: [],
@@ -27,7 +27,7 @@ const EMPTY: CarnetsState = {
  * on repousse le minuteur à chaque frappe et on écrit dès que la main s'arrête,
  * puis le pilote ne touche que les entrées réellement modifiées.
  */
-export function CarnetsProvider({ children }: { children: ReactNode }) {
+export function FolioProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, EMPTY)
   const [ready, setReady] = useState(false)
   const [save, setSave] = useState<SaveState>({
@@ -44,7 +44,7 @@ export function CarnetsProvider({ children }: { children: ReactNode }) {
 
   const driver = useRef<Driver | null>(null)
   /** Le dernier état réellement écrit : c'est la base de comparaison du diff. */
-  const persisted = useRef<CarnetsState | null>(null)
+  const persisted = useRef<FolioState | null>(null)
   /** Les écritures se suivent à la queue leu leu, jamais en parallèle. */
   const queue = useRef<Promise<void>>(Promise.resolve())
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -213,7 +213,7 @@ export function CarnetsProvider({ children }: { children: ReactNode }) {
     [vault],
   )
 
-  const api = useMemo<CarnetsApi>(
+  const api = useMemo<FolioApi>(
     () => ({
       state,
       save,
@@ -239,14 +239,14 @@ export function CarnetsProvider({ children }: { children: ReactNode }) {
   // montrer : afficher des colonnes vides ferait croire à des notes perdues.
   if (!ready) return <BootScreen />
 
-  return <CarnetsContext.Provider value={api}>{children}</CarnetsContext.Provider>
+  return <FolioContext.Provider value={api}>{children}</FolioContext.Provider>
 }
 
 function BootScreen() {
   return (
     <div className="boot" role="status" aria-live="polite">
       <span className="boot__spinner" aria-hidden="true" />
-      <p>Ouverture de vos carnets…</p>
+      <p>Ouverture de vos notes…</p>
     </div>
   )
 }

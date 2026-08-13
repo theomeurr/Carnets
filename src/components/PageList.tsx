@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { colorOf } from '../lib/colors'
 import { displayTitle, formatDate } from '../lib/text'
-import { useCarnets, useCurrentView } from '../store/useCarnets'
+import { useFolio, useCurrentView } from '../store/useFolio'
 import type { Id } from '../types'
 import { IconLock, IconPlus } from './Icons'
 import { InlineRename } from './InlineRename'
@@ -11,8 +11,8 @@ import { useLockMenu } from './useLockMenu'
 
 /** Colonne du milieu : les pages de la section ouverte. */
 export function PageList() {
-  const carnets = useCarnets()
-  const { select, addPage, vault } = carnets
+  const folio = useFolio()
+  const { select, addPage, vault } = folio
   const { controlsFor, dialogs } = useLockMenu()
   const { notebook, section, page: activePage, pages } = useCurrentView()
 
@@ -88,7 +88,7 @@ export function PageList() {
                         ariaLabel={`Renommer la page ${title}`}
                         value={content.title}
                         onCommit={(next) => {
-                          carnets.renamePage(page.id, next)
+                          folio.renamePage(page.id, next)
                           setRenaming(null)
                         }}
                         onCancel={() => setRenaming(null)}
@@ -138,7 +138,7 @@ export function PageList() {
             </p>
           }
           onConfirm={() => {
-            carnets.removePage(pending.id)
+            folio.removePage(pending.id)
             setPending(null)
           }}
           onCancel={() => setPending(null)}

@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import type { CarnetsState, Id, Notebook, Page, Section, Selection } from '../types'
+import type { FolioState, Id, Notebook, Page, Section, Selection } from '../types'
 
 import type { DriverKind } from './persistence'
 import type { Vault } from './useVault'
@@ -22,8 +22,8 @@ export interface SaveState {
  * créent quelque chose renvoient l'objet créé pour pouvoir l'enchaîner (passer
  * la nouvelle section en mode renommage, par exemple).
  */
-export interface CarnetsApi {
-  state: CarnetsState
+export interface FolioApi {
+  state: FolioState
   /** Où en est l'enregistrement — y compris quand il échoue. */
   save: SaveState
   /** Les verrous, les clés de la session, et le contenu déchiffré. */
@@ -53,4 +53,4 @@ export interface CarnetsApi {
   select: (patch: Partial<Selection>) => void
 }
 
-export const CarnetsContext = createContext<CarnetsApi | null>(null)
+export const FolioContext = createContext<FolioApi | null>(null)

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { colorOf } from '../lib/colors'
-import { useCarnets, useCurrentView, usePageCounts } from '../store/useCarnets'
+import { useFolio, useCurrentView, usePageCounts } from '../store/useFolio'
 import type { Id } from '../types'
 import { IconLock, IconNotebook, IconPlus } from './Icons'
 import { InlineRename } from './InlineRename'
@@ -17,8 +17,8 @@ type Pending =
  * et les sections du bloc-notes ouvert dépliées juste en dessous.
  */
 export function Sidebar() {
-  const carnets = useCarnets()
-  const { state, select, addNotebook, addSection } = carnets
+  const folio = useFolio()
+  const { state, select, addNotebook, addSection } = folio
   const { notebook: activeNotebook, section: activeSection, sections } = useCurrentView()
   const pageCounts = usePageCounts()
 
@@ -41,8 +41,8 @@ export function Sidebar() {
 
   const confirmDelete = () => {
     if (!pending) return
-    if (pending.kind === 'notebook') carnets.removeNotebook(pending.id)
-    else carnets.removeSection(pending.id)
+    if (pending.kind === 'notebook') folio.removeNotebook(pending.id)
+    else folio.removeSection(pending.id)
     setPending(null)
   }
 
@@ -98,7 +98,7 @@ export function Sidebar() {
                       ariaLabel={`Renommer le bloc-notes ${notebook.name}`}
                       value={notebook.name}
                       onCommit={(name) => {
-                        carnets.renameNotebook(notebook.id, name)
+                        folio.renameNotebook(notebook.id, name)
                         setRenaming(null)
                       }}
                       onCancel={() => setRenaming(null)}
@@ -112,7 +112,7 @@ export function Sidebar() {
                     onDelete={() => askDeleteNotebook(notebook.id, notebook.name)}
                     color={{
                       value: notebook.color,
-                      onChange: (next) => carnets.recolorNotebook(notebook.id, next),
+                      onChange: (next) => folio.recolorNotebook(notebook.id, next),
                     }}
                     lock={controlsFor('notebook', notebook.id, notebook.name)}
                   />
@@ -150,7 +150,7 @@ export function Sidebar() {
                                 ariaLabel={`Renommer la section ${section.name}`}
                                 value={section.name}
                                 onCommit={(name) => {
-                                  carnets.renameSection(section.id, name)
+                                  folio.renameSection(section.id, name)
                                   setRenaming(null)
                                 }}
                                 onCancel={() => setRenaming(null)}

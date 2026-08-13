@@ -1,4 +1,4 @@
-import { useCarnets } from '../store/useCarnets'
+import { useFolio } from '../store/useFolio'
 import { IconAlert } from './Icons'
 
 /**
@@ -8,7 +8,7 @@ import { IconAlert } from './Icons'
  * qu'une écriture réussit — les modifications en attente sont réessayées.
  */
 export function SaveBanner() {
-  const { save } = useCarnets()
+  const { save } = useFolio()
   if (save.status !== 'error') return null
 
   return (

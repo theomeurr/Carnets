@@ -1,4 +1,4 @@
-import type { CarnetsState, Page } from '../types'
+import type { FolioState, Page } from '../types'
 import { fold } from './text'
 
 export interface SearchHit {
@@ -27,7 +27,7 @@ const SNIPPET_RADIUS = 90
  * mot recherché s'y trouve.
  */
 export function search(
-  state: CarnetsState,
+  state: FolioState,
   query: string,
   limit = 30,
   reveal?: (page: Page) => { title: string; text: string } | null,

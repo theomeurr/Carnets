@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CarnetsState, Page, Section } from '../types'
+import type { FolioState, Page, Section } from '../types'
 import { reducer } from './reducer'
 
 const notebook = (id: string) => ({ id, name: id, color: 'indigo', createdAt: 0 })
@@ -21,7 +21,7 @@ const page = (id: string, sectionId: string): Page => ({
 })
 
 /** Deux bloc-notes, deux sections chacun, deux pages dans la première section. */
-function classeur(): CarnetsState {
+function classeur(): FolioState {
   return {
     version: 1,
     notebooks: [notebook('n1'), notebook('n2')],

@@ -1,4 +1,4 @@
-# Carnets
+# Folio
 
 Une application de prise de notes organisée comme un vrai classeur, sur trois
 niveaux : **bloc-notes → sections → pages**.
@@ -47,9 +47,9 @@ src/
   types.ts               le modèle : Notebook, Section, Page, Lock, Selection
   store/
     reducer.ts           toutes les transitions d'état, fonctions pures
-    CarnetsProvider.tsx  l'état, les actions, l'enregistrement automatique
+    FolioProvider.tsx  l'état, les actions, l'enregistrement automatique
     context.ts           le contrat exposé à l'interface
-    useCarnets.ts        accès à l'état et vues dérivées des trois colonnes
+    useFolio.ts        accès à l'état et vues dérivées des trois colonnes
     seed.ts              le classeur du premier lancement
     useVault.ts          la session déverrouillée, en mémoire seulement
     persistence/
@@ -146,7 +146,7 @@ sont construits à partir du texte brut et rendus comme des éléments React.
 
 ## Installer l'application
 
-Carnets est une PWA : depuis le site, le navigateur propose de l'installer, et
+Folio est une PWA : depuis le site, le navigateur propose de l'installer, et
 elle s'ouvre ensuite dans sa propre fenêtre, sans barre d'adresse.
 
 - **Chrome / Edge (bureau)** : l'icône d'installation apparaît au bout de la

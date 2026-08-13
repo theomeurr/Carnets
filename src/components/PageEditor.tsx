@@ -6,7 +6,7 @@ import { colorOf } from '../lib/colors'
 import { lockOfPage } from '../lib/locks'
 import { formatDate } from '../lib/text'
 import type { PageContent } from '../store/useVault'
-import { useCarnets, useCurrentView } from '../store/useCarnets'
+import { useFolio, useCurrentView } from '../store/useFolio'
 import type { Page } from '../types'
 import { EditorToolbar } from './EditorToolbar'
 import { IconPage, IconPlus } from './Icons'
@@ -22,7 +22,7 @@ const WRITE_DELAY_MS = 300
  */
 export function PageEditor() {
   const { notebook, section, page } = useCurrentView()
-  const { addPage, state, vault } = useCarnets()
+  const { addPage, state, vault } = useFolio()
   const content = page ? vault.reveal(page) : null
 
   if (!page) {
@@ -76,7 +76,7 @@ function PageSurface({
   accent: string
   breadcrumb: string
 }) {
-  const { renamePage, writePage, claimNewPageFocus } = useCarnets()
+  const { renamePage, writePage, claimNewPageFocus } = useFolio()
   const titleRef = useRef<HTMLTextAreaElement>(null)
 
   // Frappe en attente d'écriture : conservée avec son identifiant de page pour

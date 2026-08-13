@@ -1,10 +1,10 @@
 import { useContext, useMemo } from 'react'
 import type { Notebook, Page, Section } from '../types'
-import { CarnetsContext, type CarnetsApi } from './context'
+import { FolioContext, type FolioApi } from './context'
 
-export function useCarnets(): CarnetsApi {
-  const api = useContext(CarnetsContext)
-  if (!api) throw new Error('useCarnets doit être utilisé dans <CarnetsProvider>')
+export function useFolio(): FolioApi {
+  const api = useContext(FolioContext)
+  if (!api) throw new Error('useFolio doit être utilisé dans <FolioProvider>')
   return api
 }
 
@@ -20,7 +20,7 @@ export interface CurrentView {
 
 /** Ce que les trois colonnes ont besoin de savoir, dérivé de la sélection. */
 export function useCurrentView(): CurrentView {
-  const { state } = useCarnets()
+  const { state } = useFolio()
   const { notebooks, sections, pages, selection } = state
 
   return useMemo(() => {
@@ -35,7 +35,7 @@ export function useCurrentView(): CurrentView {
 
 /** Nombre de pages contenues dans une section — affiché en pastille. */
 export function usePageCounts(): Map<string, number> {
-  const { state } = useCarnets()
+  const { state } = useFolio()
   return useMemo(() => {
     const counts = new Map<string, number>()
     for (const page of state.pages) {
