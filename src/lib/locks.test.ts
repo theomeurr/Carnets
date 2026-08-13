@@ -107,6 +107,14 @@ describe('interdiction de l’imbrication', () => {
     expect(lockObstacle(state, 'section', 's2')).toBeNull()
     expect(lockObstacle(state, 'notebook', 'n2')).toBeNull()
   })
+
+  it('laisse protéger deux pages d’une même section, chacune de son côté', () => {
+    // Les verrous frères sont indépendants : deux pages voisines peuvent avoir
+    // deux mots de passe différents. Seule la superposition est interdite.
+    const state = classeur([lock('page', 'p1')])
+    expect(lockObstacle(state, 'page', 'p2')).toBeNull()
+    expect(lockObstacle(state, 'page', 'p3')).toBeNull()
+  })
 })
 
 describe('recherche d’un verrou précis', () => {
