@@ -1,5 +1,5 @@
 import { htmlToText } from '../../lib/text'
-import type { FolioState, Lock, Notebook, Page, Section, Selection } from '../../types'
+import type { FolioState, Lock, Notebook, Page, Section, Selection, Tombstone } from '../../types'
 import { STATE_VERSION } from './types'
 
 /**
@@ -17,9 +17,11 @@ export function assemble(
   rawSections: unknown[],
   rawPages: unknown[],
   rawLocks: unknown[],
+  rawTombstones: unknown[],
   rawSelection: unknown,
+  now = Date.now(),
 ): FolioState | null {
-  const notebooks = rawNotebooks.filter(isNotebook).sort(byCreation)
+  const notebooks = rawNotebooks.filter(isNotebook).sort(byCreation).map(dated)
   if (notebooks.length === 0) return null
 
   const notebookIds = new Set(notebooks.map((n) => n.id))
@@ -27,6 +29,7 @@ export function assemble(
     .filter(isSection)
     .filter((s) => notebookIds.has(s.notebookId))
     .sort(byCreation)
+    .map(dated)
 
   const sectionIds = new Set(sections.map((s) => s.id))
   const pages = rawPages
@@ -48,11 +51,18 @@ export function assemble(
   // Un verrou qui ne désigne plus rien est écarté : il bloquerait un élément
   // inexistant, et `settle` le retirerait de toute façon au premier passage.
   const pageIds = new Set(pages.map((p) => p.id))
-  const locks = rawLocks.filter(isLock).filter((lock) => {
+  const locks = rawLocks.filter(isLock).map(dated).filter((lock) => {
     if (lock.scope === 'notebook') return notebookIds.has(lock.id)
     if (lock.scope === 'section') return sectionIds.has(lock.id)
     return pageIds.has(lock.id)
   })
+
+  // Une trace de suppression finit par ne plus servir : tous les appareils
+  // l'ont vue depuis longtemps. On les oublie au bout de trois mois pour que
+  // la liste ne grossisse pas indéfiniment.
+  const tombstones = rawTombstones
+    .filter(isTombstone)
+    .filter((t) => now - t.deletedAt < TOMBSTONE_TTL_MS)
 
   return {
     version: STATE_VERSION,
@@ -60,9 +70,21 @@ export function assemble(
     sections,
     pages,
     locks,
+    tombstones,
     // Une sélection incohérente est rattrapée au premier passage du reducer.
     selection: readSelection(rawSelection),
   }
+}
+
+/**
+ * `updatedAt` n'existait pas avant la synchronisation : on le fait naître de
+ * `createdAt` pour les données déjà écrites, plutôt que de les traiter comme
+ * infiniment anciennes.
+ */
+function dated<T extends { createdAt?: number; updatedAt?: number }>(entity: T): T {
+  return typeof entity.updatedAt === 'number'
+    ? entity
+    : { ...entity, updatedAt: entity.createdAt ?? 0 }
 }
 
 /** À date de création égale, l'identifiant tranche : l'ordre reste stable. */
@@ -88,6 +110,18 @@ export function isNotebook(value: unknown): value is Notebook {
 export function isSection(value: unknown): value is Section {
   const s = value as Partial<Section>
   return typeof s?.id === 'string' && typeof s.name === 'string' && typeof s.notebookId === 'string'
+}
+
+/** Durée de conservation des traces de suppression. */
+export const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000
+
+export function isTombstone(value: unknown): value is Tombstone {
+  const t = value as Partial<Tombstone>
+  return (
+    typeof t?.id === 'string' &&
+    typeof t.deletedAt === 'number' &&
+    (t.kind === 'notebook' || t.kind === 'section' || t.kind === 'page' || t.kind === 'lock')
+  )
 }
 
 export function isLock(value: unknown): value is Lock {

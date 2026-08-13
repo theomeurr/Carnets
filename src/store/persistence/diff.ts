@@ -39,6 +39,7 @@ export function unchanged(previous: FolioState | null, next: FolioState): boolea
     previous.sections === next.sections &&
     previous.pages === next.pages &&
     previous.locks === next.locks &&
+    previous.tombstones === next.tombstones &&
     previous.selection === next.selection
   )
 }

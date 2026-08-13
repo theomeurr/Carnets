@@ -9,6 +9,7 @@ const lock = (scope: LockScope, id: string): Lock => ({
   iterations: 1,
   verifier: 'témoin',
   createdAt: 0,
+  updatedAt: 0,
 })
 
 /** n1 { s1 [p1, p2], s2 [p3] }, n2 { s3 [p4] } */
@@ -26,16 +27,17 @@ function classeur(locks: Lock[] = []): FolioState {
   return {
     version: 1,
     notebooks: [
-      { id: 'n1', name: 'n1', color: 'indigo', createdAt: 0 },
-      { id: 'n2', name: 'n2', color: 'rose', createdAt: 0 },
+      { id: 'n1', name: 'n1', color: 'indigo', createdAt: 0, updatedAt: 0 },
+      { id: 'n2', name: 'n2', color: 'rose', createdAt: 0, updatedAt: 0 },
     ],
     sections: [
-      { id: 's1', notebookId: 'n1', name: 's1', createdAt: 0 },
-      { id: 's2', notebookId: 'n1', name: 's2', createdAt: 0 },
-      { id: 's3', notebookId: 'n2', name: 's3', createdAt: 0 },
+      { id: 's1', notebookId: 'n1', name: 's1', createdAt: 0, updatedAt: 0 },
+      { id: 's2', notebookId: 'n1', name: 's2', createdAt: 0, updatedAt: 0 },
+      { id: 's3', notebookId: 'n2', name: 's3', createdAt: 0, updatedAt: 0 },
     ],
     pages: [page('p1', 's1'), page('p2', 's1'), page('p3', 's2'), page('p4', 's3')],
     locks,
+    tombstones: [],
     selection: { notebookId: 'n1', sectionId: 's1', pageId: 'p1' },
   }
 }

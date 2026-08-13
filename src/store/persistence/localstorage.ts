@@ -80,6 +80,7 @@ function readKey(key: string): FolioState | null {
       parsed.sections,
       parsed.pages,
       Array.isArray(parsed.locks) ? parsed.locks : [],
+      Array.isArray(parsed.tombstones) ? parsed.tombstones : [],
       parsed.selection,
     )
   } catch {

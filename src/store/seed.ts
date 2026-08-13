@@ -15,6 +15,7 @@ export function seed(): FolioState {
     name: 'Mon premier bloc-notes',
     color: 'indigo',
     createdAt: now,
+    updatedAt: now,
   }
 
   const prise: Section = {
@@ -22,12 +23,14 @@ export function seed(): FolioState {
     notebookId: notebook.id,
     name: 'Prise en main',
     createdAt: now,
+    updatedAt: now,
   }
   const idees: Section = {
     id: newId(),
     notebookId: notebook.id,
     name: 'Idées',
     createdAt: now,
+    updatedAt: now,
   }
 
   const pages: Page[] = [
@@ -71,6 +74,7 @@ export function seed(): FolioState {
     sections: [prise, idees],
     pages,
     locks: [],
+    tombstones: [],
     selection: { notebookId: notebook.id, sectionId: prise.id, pageId: pages[0].id },
   }
 }

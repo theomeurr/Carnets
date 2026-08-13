@@ -17,14 +17,15 @@ function classeur(): FolioState {
   return {
     version: 1,
     notebooks: [
-      { id: 'n1', name: 'Travail', color: 'indigo', createdAt: 0 },
-      { id: 'n2', name: 'Personnel', color: 'rose', createdAt: 0 },
+      { id: 'n1', name: 'Travail', color: 'indigo', createdAt: 0, updatedAt: 0 },
+      { id: 'n2', name: 'Personnel', color: 'rose', createdAt: 0, updatedAt: 0 },
     ],
     sections: [
-      { id: 's1', notebookId: 'n1', name: 'Réunions', createdAt: 0 },
-      { id: 's2', notebookId: 'n2', name: 'Cuisine', createdAt: 0 },
+      { id: 's1', notebookId: 'n1', name: 'Réunions', createdAt: 0, updatedAt: 0 },
+      { id: 's2', notebookId: 'n2', name: 'Cuisine', createdAt: 0, updatedAt: 0 },
     ],
     locks: [],
+    tombstones: [],
     pages: [
       page('p1', 's1', 'Réunion budget', 'Le budget est validé pour le trimestre.'),
       page('p2', 's1', 'Point équipe', 'On parle du budget la semaine prochaine.'),

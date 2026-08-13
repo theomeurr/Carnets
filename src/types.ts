@@ -8,6 +8,8 @@ export interface Notebook {
   /** Identifiant d'une couleur de `lib/colors.ts` (l'onglet visible sur le côté). */
   color: string
   createdAt: number
+  /** Date de dernière modification — c'est elle qui départage deux appareils. */
+  updatedAt: number
 }
 
 /** Une section : un intercalaire à l'intérieur d'un bloc-notes. */
@@ -16,6 +18,8 @@ export interface Section {
   notebookId: Id
   name: string
   createdAt: number
+  /** Date de dernière modification — c'est elle qui départage deux appareils. */
+  updatedAt: number
 }
 
 /**
@@ -57,6 +61,25 @@ export interface Lock {
   iterations: number
   verifier: string
   createdAt: number
+  updatedAt: number
+}
+
+/** Les trois sortes d'objets qui peuvent être supprimés. */
+export type EntityKind = 'notebook' | 'section' | 'page' | 'lock'
+
+/**
+ * La trace d'une suppression. Sans elle, un élément effacé sur un appareil
+ * reviendrait depuis un autre qui l'a encore : l'absence ne se distingue pas
+ * du « pas encore reçu ». On garde donc l'acte de supprimer, daté, et c'est
+ * lui qui se propage.
+ *
+ * L'interface n'en voit jamais rien : les collections de `FolioState` ne
+ * contiennent que ce qui existe encore.
+ */
+export interface Tombstone {
+  id: Id
+  kind: EntityKind
+  deletedAt: number
 }
 
 /** Ce qui est ouvert à l'écran, une entrée par colonne. */
@@ -78,5 +101,7 @@ export interface FolioState {
   sections: Section[]
   pages: Page[]
   locks: Lock[]
+  /** Les suppressions passées, à propager puis à oublier. */
+  tombstones: Tombstone[]
   selection: Selection
 }

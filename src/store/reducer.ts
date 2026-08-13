@@ -1,25 +1,35 @@
-import type { FolioState, Id, Lock, Notebook, Page, Section, Selection } from '../types'
+import type {
+  EntityKind,
+  FolioState,
+  Id,
+  Lock,
+  Notebook,
+  Page,
+  Section,
+  Selection,
+  Tombstone,
+} from '../types'
 
 export type Action =
   | { type: 'notebook/add'; notebook: Notebook; section: Section; page: Page }
-  | { type: 'notebook/rename'; id: Id; name: string }
-  | { type: 'notebook/recolor'; id: Id; color: string }
-  | { type: 'notebook/remove'; id: Id }
+  | { type: 'notebook/rename'; id: Id; name: string; now: number }
+  | { type: 'notebook/recolor'; id: Id; color: string; now: number }
+  | { type: 'notebook/remove'; id: Id; now: number }
   | { type: 'section/add'; section: Section; page: Page }
-  | { type: 'section/rename'; id: Id; name: string }
-  | { type: 'section/remove'; id: Id }
+  | { type: 'section/rename'; id: Id; name: string; now: number }
+  | { type: 'section/remove'; id: Id; now: number }
   | { type: 'page/add'; page: Page }
   | { type: 'page/rename'; id: Id; title: string; now: number }
   | { type: 'page/write'; id: Id; html: string; text: string; now: number }
   /** Écriture d'une page sous verrou : seul le chiffré change. */
   | { type: 'page/sealed'; id: Id; cipher: string; now: number }
-  | { type: 'page/remove'; id: Id }
+  | { type: 'page/remove'; id: Id; now: number }
   | { type: 'select'; patch: Partial<Selection> }
   | { type: 'state/hydrate'; state: FolioState }
   /** Pose le verrou et remplace d'un bloc les pages par leur version chiffrée. */
   | { type: 'lock/add'; lock: Lock; pages: Page[] }
   /** Retire le verrou et rend les pages en clair. */
-  | { type: 'lock/remove'; id: Id; pages: Page[] }
+  | { type: 'lock/remove'; id: Id; pages: Page[]; now: number }
 
 export function reducer(state: FolioState, action: Action): FolioState {
   switch (action.type) {
@@ -43,7 +53,7 @@ export function reducer(state: FolioState, action: Action): FolioState {
       return settle({
         ...state,
         notebooks: state.notebooks.map((n) =>
-          n.id === action.id ? { ...n, name: action.name } : n,
+          n.id === action.id ? { ...n, name: action.name, updatedAt: action.now } : n,
         ),
       })
 
@@ -51,20 +61,27 @@ export function reducer(state: FolioState, action: Action): FolioState {
       return settle({
         ...state,
         notebooks: state.notebooks.map((n) =>
-          n.id === action.id ? { ...n, color: action.color } : n,
+          n.id === action.id ? { ...n, color: action.color, updatedAt: action.now } : n,
         ),
       })
 
     case 'notebook/remove': {
       // Supprimer un bloc-notes emporte ses sections, et leurs pages avec elles.
-      const doomedSections = state.sections
-        .filter((s) => s.notebookId === action.id)
-        .map((s) => s.id)
+      const doomedSections = state.sections.filter((s) => s.notebookId === action.id)
+      const doomedIds = new Set(doomedSections.map((s) => s.id))
+      const doomedPages = state.pages.filter((p) => doomedIds.has(p.sectionId))
       return settle({
         ...state,
         notebooks: state.notebooks.filter((n) => n.id !== action.id),
         sections: state.sections.filter((s) => s.notebookId !== action.id),
-        pages: state.pages.filter((p) => !doomedSections.includes(p.sectionId)),
+        pages: state.pages.filter((p) => !doomedIds.has(p.sectionId)),
+        // Chaque disparition laisse sa trace : sans elle, un autre appareil
+        // qui a encore ces éléments les ferait revenir à la synchronisation.
+        tombstones: bury(state.tombstones, action.now, [
+          ['notebook', action.id],
+          ...doomedSections.map((s) => ['section', s.id] as const),
+          ...doomedPages.map((p) => ['page', p.id] as const),
+        ]),
       })
     }
 
@@ -84,16 +101,22 @@ export function reducer(state: FolioState, action: Action): FolioState {
       return settle({
         ...state,
         sections: state.sections.map((s) =>
-          s.id === action.id ? { ...s, name: action.name } : s,
+          s.id === action.id ? { ...s, name: action.name, updatedAt: action.now } : s,
         ),
       })
 
-    case 'section/remove':
+    case 'section/remove': {
+      const doomedPages = state.pages.filter((p) => p.sectionId === action.id)
       return settle({
         ...state,
         sections: state.sections.filter((s) => s.id !== action.id),
         pages: state.pages.filter((p) => p.sectionId !== action.id),
+        tombstones: bury(state.tombstones, action.now, [
+          ['section', action.id],
+          ...doomedPages.map((p) => ['page', p.id] as const),
+        ]),
       })
+    }
 
     case 'page/add': {
       const section = state.sections.find((s) => s.id === action.page.sectionId)
@@ -143,7 +166,11 @@ export function reducer(state: FolioState, action: Action): FolioState {
     }
 
     case 'page/remove':
-      return settle({ ...state, pages: state.pages.filter((p) => p.id !== action.id) })
+      return settle({
+        ...state,
+        pages: state.pages.filter((p) => p.id !== action.id),
+        tombstones: bury(state.tombstones, action.now, [['page', action.id]]),
+      })
 
     case 'lock/add':
       return settle({
@@ -157,6 +184,7 @@ export function reducer(state: FolioState, action: Action): FolioState {
         ...state,
         locks: state.locks.filter((lock) => lock.id !== action.id),
         pages: replacePages(state.pages, action.pages),
+        tombstones: bury(state.tombstones, action.now, [['lock', action.id]]),
       })
 
     case 'select':
@@ -165,6 +193,21 @@ export function reducer(state: FolioState, action: Action): FolioState {
     default:
       return state
   }
+}
+
+/**
+ * Ajoute des traces de suppression, en remplaçant celles qui existaient déjà
+ * pour les mêmes objets — une seule trace par identifiant, la plus récente.
+ */
+function bury(
+  existing: Tombstone[],
+  deletedAt: number,
+  buried: readonly (readonly [EntityKind, Id])[],
+): Tombstone[] {
+  if (buried.length === 0) return existing
+  const fresh = buried.map(([kind, id]) => ({ id, kind, deletedAt }))
+  const replaced = new Set(fresh.map((t) => `${t.kind}:${t.id}`))
+  return [...existing.filter((t) => !replaced.has(`${t.kind}:${t.id}`)), ...fresh]
 }
 
 /**

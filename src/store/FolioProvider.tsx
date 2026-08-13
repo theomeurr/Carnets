@@ -19,6 +19,7 @@ const EMPTY: FolioState = {
   sections: [],
   pages: [],
   locks: [],
+  tombstones: [],
   selection: { notebookId: null, sectionId: null, pageId: null },
 }
 
@@ -105,7 +106,7 @@ export function FolioProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     schedule(true)
-  }, [state.notebooks, state.sections, state.pages, state.locks, schedule])
+  }, [state.notebooks, state.sections, state.pages, state.locks, state.tombstones, schedule])
 
   // La navigation est mémorisée elle aussi, mais sans indicateur : rouvrir la
   // dernière page consultée n'est pas une modification du contenu.
@@ -143,12 +144,14 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       name: `Bloc-notes ${current.notebooks.length + 1}`,
       color: nextColor(current.notebooks.map((n) => n.color)),
       createdAt: now,
+      updatedAt: now,
     }
     const section: Section = {
       id: newId(),
       notebookId: notebook.id,
       name: 'Section 1',
       createdAt: now,
+      updatedAt: now,
     }
     dispatch({ type: 'notebook/add', notebook, section, page: blankPage(section.id, now) })
     return notebook
@@ -162,6 +165,7 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       notebookId,
       name: `Section ${count + 1}`,
       createdAt: now,
+      updatedAt: now,
     }
     dispatch({ type: 'section/add', section, page: blankPage(section.id, now) })
     return section
@@ -219,17 +223,20 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       save,
       vault,
       addNotebook,
-      renameNotebook: (id, name) => dispatch({ type: 'notebook/rename', id, name }),
-      recolorNotebook: (id, color) => dispatch({ type: 'notebook/recolor', id, color }),
-      removeNotebook: (id) => dispatch({ type: 'notebook/remove', id }),
+      renameNotebook: (id, name) =>
+        dispatch({ type: 'notebook/rename', id, name, now: Date.now() }),
+      recolorNotebook: (id, color) =>
+        dispatch({ type: 'notebook/recolor', id, color, now: Date.now() }),
+      removeNotebook: (id) => dispatch({ type: 'notebook/remove', id, now: Date.now() }),
       addSection,
-      renameSection: (id, name) => dispatch({ type: 'section/rename', id, name }),
-      removeSection: (id) => dispatch({ type: 'section/remove', id }),
+      renameSection: (id, name) =>
+        dispatch({ type: 'section/rename', id, name, now: Date.now() }),
+      removeSection: (id) => dispatch({ type: 'section/remove', id, now: Date.now() }),
       addPage,
       claimNewPageFocus,
       renamePage,
       writePage,
-      removePage: (id) => dispatch({ type: 'page/remove', id }),
+      removePage: (id) => dispatch({ type: 'page/remove', id, now: Date.now() }),
       select: (patch) => dispatch({ type: 'select', patch }),
     }),
     [state, save, vault, addNotebook, addSection, addPage, claimNewPageFocus, renamePage, writePage],

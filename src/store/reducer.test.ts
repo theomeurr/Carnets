@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { FolioState, Page, Section } from '../types'
 import { reducer } from './reducer'
 
-const notebook = (id: string) => ({ id, name: id, color: 'indigo', createdAt: 0 })
+const notebook = (id: string) => ({ id, name: id, color: 'indigo', createdAt: 0, updatedAt: 0 })
 const section = (id: string, notebookId: string): Section => ({
   id,
   notebookId,
   name: id,
   createdAt: 0,
+  updatedAt: 0,
 })
 const page = (id: string, sectionId: string): Page => ({
   id,
@@ -28,49 +29,50 @@ function classeur(): FolioState {
     sections: [section('s1', 'n1'), section('s2', 'n1'), section('s3', 'n2')],
     pages: [page('p1', 's1'), page('p2', 's1'), page('p3', 's2'), page('p4', 's3')],
     locks: [],
+    tombstones: [],
     selection: { notebookId: 'n1', sectionId: 's1', pageId: 'p1' },
   }
 }
 
 describe('suppressions en cascade', () => {
   it('supprime les sections et les pages du bloc-notes retiré', () => {
-    const next = reducer(classeur(), { type: 'notebook/remove', id: 'n1' })
+    const next = reducer(classeur(), { type: 'notebook/remove', id: 'n1', now: 1 })
     expect(next.notebooks.map((n) => n.id)).toEqual(['n2'])
     expect(next.sections.map((s) => s.id)).toEqual(['s3'])
     expect(next.pages.map((p) => p.id)).toEqual(['p4'])
   })
 
   it('supprime les pages de la section retirée', () => {
-    const next = reducer(classeur(), { type: 'section/remove', id: 's1' })
+    const next = reducer(classeur(), { type: 'section/remove', id: 's1', now: 1 })
     expect(next.sections.map((s) => s.id)).toEqual(['s2', 's3'])
     expect(next.pages.map((p) => p.id)).toEqual(['p3', 'p4'])
   })
 
   it('ne touche pas aux autres bloc-notes', () => {
-    const next = reducer(classeur(), { type: 'notebook/remove', id: 'n2' })
+    const next = reducer(classeur(), { type: 'notebook/remove', id: 'n2', now: 1 })
     expect(next.pages.map((p) => p.id)).toEqual(['p1', 'p2', 'p3'])
   })
 })
 
 describe('rattrapage de la sélection', () => {
   it('rouvre la page voisine quand la page ouverte est supprimée', () => {
-    const next = reducer(classeur(), { type: 'page/remove', id: 'p1' })
+    const next = reducer(classeur(), { type: 'page/remove', id: 'p1', now: 1 })
     expect(next.selection).toEqual({ notebookId: 'n1', sectionId: 's1', pageId: 'p2' })
   })
 
   it('descend jusqu’à une page valide quand la section ouverte disparaît', () => {
-    const next = reducer(classeur(), { type: 'section/remove', id: 's1' })
+    const next = reducer(classeur(), { type: 'section/remove', id: 's1', now: 1 })
     expect(next.selection).toEqual({ notebookId: 'n1', sectionId: 's2', pageId: 'p3' })
   })
 
   it('bascule sur le bloc-notes restant quand le sien disparaît', () => {
-    const next = reducer(classeur(), { type: 'notebook/remove', id: 'n1' })
+    const next = reducer(classeur(), { type: 'notebook/remove', id: 'n1', now: 1 })
     expect(next.selection).toEqual({ notebookId: 'n2', sectionId: 's3', pageId: 'p4' })
   })
 
   it('accepte un classeur entièrement vide', () => {
-    let state = reducer(classeur(), { type: 'notebook/remove', id: 'n1' })
-    state = reducer(state, { type: 'notebook/remove', id: 'n2' })
+    let state = reducer(classeur(), { type: 'notebook/remove', id: 'n1', now: 1 })
+    state = reducer(state, { type: 'notebook/remove', id: 'n2', now: 1 })
     expect(state.selection).toEqual({ notebookId: null, sectionId: null, pageId: null })
   })
 

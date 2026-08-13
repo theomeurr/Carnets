@@ -57,6 +57,7 @@ describe('détection d’absence de changement', () => {
     sections: [],
     pages: [],
     locks: [],
+    tombstones: [],
     selection: { notebookId: null, sectionId: null, pageId: null },
   }
 

@@ -150,6 +150,7 @@ export function useVault(latest: RefObject<FolioState>, dispatch: Dispatch<Actio
         iterations: PBKDF2_ITERATIONS,
         verifier: await makeVerifier(key),
         createdAt: Date.now(),
+        updatedAt: Date.now(),
       }
 
       // Le contenu quitte les pages pour n'exister qu'en chiffré — titre compris.
@@ -232,7 +233,7 @@ export function useVault(latest: RefObject<FolioState>, dispatch: Dispatch<Actio
         return { ...page, ...clear, cipher: null, updatedAt: now }
       })
 
-      dispatch({ type: 'lock/remove', id: lockId, pages: cleared })
+      dispatch({ type: 'lock/remove', id: lockId, pages: cleared, now })
       relock(lockId)
     },
     [latest, dispatch, relock],
