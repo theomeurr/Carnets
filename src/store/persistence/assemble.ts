@@ -1,4 +1,5 @@
 import { htmlToText } from '../../lib/text'
+import { byOrder } from '../order'
 import type { FolioState, Lock, Notebook, Page, Section, Selection, Tombstone } from '../../types'
 import { STATE_VERSION } from './types'
 
@@ -8,9 +9,9 @@ import { STATE_VERSION } from './types'
  * le démarrage, et les enfants orphelins sont élagués : une entrée abîmée coûte
  * une note, pas le classeur entier.
  *
- * L'ordre d'affichage est celui de la création. Les supports clé-valeur
- * rendent les entrées triées par identifiant, on rétablit donc l'ordre ici.
- * (Le jour où le glisser-déposer arrivera, il faudra un champ d'ordre explicite.)
+ * L'ordre d'affichage vient du rang de chaque entrée, qui vaut sa date de
+ * création tant que rien n'a été réorganisé. Les supports clé-valeur rendent
+ * les entrées triées par identifiant, on rétablit donc l'ordre ici.
  */
 export function assemble(
   rawNotebooks: unknown[],
@@ -21,21 +22,21 @@ export function assemble(
   rawSelection: unknown,
   now = Date.now(),
 ): FolioState | null {
-  const notebooks = rawNotebooks.filter(isNotebook).sort(byCreation).map(dated)
+  const notebooks = rawNotebooks.filter(isNotebook).sort(byOrder).map(dated)
   if (notebooks.length === 0) return null
 
   const notebookIds = new Set(notebooks.map((n) => n.id))
   const sections = rawSections
     .filter(isSection)
     .filter((s) => notebookIds.has(s.notebookId))
-    .sort(byCreation)
+    .sort(byOrder)
     .map(dated)
 
   const sectionIds = new Set(sections.map((s) => s.id))
   const pages = rawPages
     .filter(isPage)
     .filter((p) => sectionIds.has(p.sectionId))
-    .sort(byCreation)
+    .sort(byOrder)
     // `text` et les dates sont reconstruits au besoin : une page écrite par une
     // version antérieure reste lisible et cherchable.
     .map((p) => ({
@@ -85,11 +86,6 @@ function dated<T extends { createdAt?: number; updatedAt?: number }>(entity: T):
   return typeof entity.updatedAt === 'number'
     ? entity
     : { ...entity, updatedAt: entity.createdAt ?? 0 }
-}
-
-/** À date de création égale, l'identifiant tranche : l'ordre reste stable. */
-function byCreation(a: { createdAt?: number; id: string }, b: { createdAt?: number; id: string }) {
-  return (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id)
 }
 
 function readSelection(raw: unknown): Selection {

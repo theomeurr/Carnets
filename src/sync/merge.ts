@@ -1,3 +1,4 @@
+import { byOrder } from '../store/order'
 import type { EntityKind, FolioState, Id, Lock, Notebook, Page, Section, Tombstone } from '../types'
 
 /**
@@ -118,7 +119,7 @@ export function discardedBy(local: FolioState, incoming: Changeset): Discarded[]
   return doomed
 }
 
-function mergeCollection<T extends { id: Id; updatedAt: number; createdAt: number }>(
+function mergeCollection<T extends { id: Id; updatedAt: number; createdAt: number; order?: number }>(
   local: T[],
   incoming: T[],
   kind: EntityKind,
@@ -153,10 +154,13 @@ function mergeCollection<T extends { id: Id; updatedAt: number; createdAt: numbe
 
   if (!touched) return local
 
-  // L'ordre d'affichage reste celui de la création.
-  return [...byId.values()].sort(
-    (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
-  )
+  /*
+   * L'ordre d'affichage suit le rang de chaque entrée. Ce tri se faisait
+   * auparavant sur la date de création : toute réorganisation manuelle était
+   * donc défaite à la première synchronisation, y compris celle qu'on venait
+   * de faire soi-même.
+   */
+  return [...byId.values()].sort(byOrder)
 }
 
 function mergeTombstones(local: Tombstone[], incoming: Tombstone[]): Tombstone[] {

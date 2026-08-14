@@ -1,3 +1,4 @@
+import { byOrder, moveWithin } from './order'
 import type {
   EntityKind,
   FolioState,
@@ -27,6 +28,11 @@ export type Action =
   | { type: 'page/remove'; id: Id; now: number }
   /** Remet en place ce qui sortait de la corbeille, daté de `now`. */
   | { type: 'trash/restore'; items: TrashedItem[]; now: number }
+  /**
+   * Déplace un élément à la place `to` parmi ses frères — les bloc-notes entre
+   * eux, les sections d'un même bloc-notes, les pages d'une même section.
+   */
+  | { type: 'reorder'; kind: 'notebook' | 'section' | 'page'; id: Id; to: number; now: number }
   | { type: 'select'; patch: Partial<Selection> }
   | { type: 'state/hydrate'; state: FolioState }
   /** Pose le verrou et remplace d'un bloc les pages par leur version chiffrée. */
@@ -34,12 +40,58 @@ export type Action =
   /** Retire le verrou et rend les pages en clair. */
   | { type: 'lock/remove'; id: Id; pages: Page[]; now: number }
 
+/**
+ * Range les collections par rang à l'entrée dans l'application.
+ *
+ * L'invariant que tout le reste suppose : l'ordre du tableau **est** l'ordre
+ * d'affichage, et c'est celui des rangs. Sans lui, deux frères créés dans la
+ * même milliseconde s'affichaient dans leur ordre d'insertion alors que le
+ * calcul de déplacement les triait par identifiant — les deux ordres
+ * divergeaient, et déplacer le second ne faisait rien.
+ *
+ * Les tableaux déjà rangés sont rendus tels quels : l'enregistrement compare
+ * par identité, et des tableaux neufs lui feraient tout réécrire.
+ */
+function ordered(state: FolioState): FolioState {
+  const sort = <T extends { id: Id; order?: number; createdAt: number }>(list: T[]): T[] => {
+    const sorted = [...list].sort(byOrder)
+    return sorted.every((entity, index) => entity === list[index]) ? list : sorted
+  }
+  const notebooks = sort(state.notebooks)
+  const sections = sort(state.sections)
+  const pages = sort(state.pages)
+  if (notebooks === state.notebooks && sections === state.sections && pages === state.pages) {
+    return state
+  }
+  return { ...state, notebooks, sections, pages }
+}
+
+/**
+ * Réécrit les rangs donnés, puis retrie la collection entière. Les tableaux
+ * sont plats — toutes sections confondues — mais le tri global reste juste :
+ * chaque famille garde ses rangs entre eux, et le filtrage par parent
+ * conserve l'ordre.
+ */
+function applyOrders<T extends { id: Id; updatedAt: number; createdAt: number; order?: number }>(
+  collection: T[],
+  updates: { id: Id; order: number }[],
+  now: number,
+): T[] {
+  const byId = new Map(updates.map((update) => [update.id, update.order]))
+  return collection
+    .map((entity) => {
+      const order = byId.get(entity.id)
+      return order === undefined ? entity : { ...entity, order, updatedAt: now }
+    })
+    .sort(byOrder)
+}
+
 export function reducer(state: FolioState, action: Action): FolioState {
   switch (action.type) {
     // Le classeur relu du stockage remplace l'état de démarrage. Il repasse par
     // `settle` : la sélection mémorisée peut désigner une page disparue depuis.
     case 'state/hydrate':
-      return settle(action.state)
+      return settle(ordered(action.state))
 
     case 'notebook/add': {
       const { notebook, section, page } = action
@@ -227,6 +279,34 @@ export function reducer(state: FolioState, action: Action): FolioState {
             ? { ...state.selection, notebookId: section.notebookId, sectionId: section.id }
             : state.selection,
       })
+    }
+
+    /*
+     * Réorganisation. Les frères sont ceux du même parent : déplacer une page
+     * ne bouscule pas celles des autres sections. `moveWithin` ne rend en
+     * général qu'un seul rang à réécrire — l'élément déplacé — donc une seule
+     * ligne part au serveur.
+     */
+    case 'reorder': {
+      if (action.kind === 'notebook') {
+        const updates = moveWithin(state.notebooks, action.id, action.to)
+        if (updates.length === 0) return state
+        return { ...state, notebooks: applyOrders(state.notebooks, updates, action.now) }
+      }
+      if (action.kind === 'section') {
+        const moved = state.sections.find((s) => s.id === action.id)
+        if (!moved) return state
+        const family = state.sections.filter((s) => s.notebookId === moved.notebookId)
+        const updates = moveWithin(family, action.id, action.to)
+        if (updates.length === 0) return state
+        return { ...state, sections: applyOrders(state.sections, updates, action.now) }
+      }
+      const moved = state.pages.find((p) => p.id === action.id)
+      if (!moved) return state
+      const family = state.pages.filter((p) => p.sectionId === moved.sectionId)
+      const updates = moveWithin(family, action.id, action.to)
+      if (updates.length === 0) return state
+      return { ...state, pages: applyOrders(state.pages, updates, action.now) }
     }
 
     case 'select':

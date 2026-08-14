@@ -8,6 +8,12 @@ export interface Notebook {
   /** Identifiant d'une couleur de `lib/colors.ts` (l'onglet visible sur le côté). */
   color: string
   createdAt: number
+  /**
+   * Le rang d'affichage, fractionnaire : déplacer un élément ne réécrit que
+   * lui. Absent tant que rien n'a été réorganisé — il vaut alors la date de
+   * création, ce qui reproduit l'ordre d'origine. Voir `store/order.ts`.
+   */
+  order?: number
   /** Date de dernière modification — c'est elle qui départage deux appareils. */
   updatedAt: number
 }
@@ -18,6 +24,12 @@ export interface Section {
   notebookId: Id
   name: string
   createdAt: number
+  /**
+   * Le rang d'affichage, fractionnaire : déplacer un élément ne réécrit que
+   * lui. Absent tant que rien n'a été réorganisé — il vaut alors la date de
+   * création, ce qui reproduit l'ordre d'origine. Voir `store/order.ts`.
+   */
+  order?: number
   /** Date de dernière modification — c'est elle qui départage deux appareils. */
   updatedAt: number
 }
@@ -41,6 +53,12 @@ export interface Page {
   /** Titre et contenu chiffrés, quand la page est protégée. */
   cipher: string | null
   createdAt: number
+  /**
+   * Le rang d'affichage, fractionnaire : déplacer un élément ne réécrit que
+   * lui. Absent tant que rien n'a été réorganisé — il vaut alors la date de
+   * création, ce qui reproduit l'ordre d'origine. Voir `store/order.ts`.
+   */
+  order?: number
   updatedAt: number
 }
 

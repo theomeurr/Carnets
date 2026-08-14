@@ -675,3 +675,49 @@ mark {
   background: var(--danger-soft);
   color: var(--danger);
 }
+
+/* ---------- Réorganisation par glisser-déposer ---------- */
+
+/*
+ * La ligne prise s'efface sans quitter sa place : la voir suivre le doigt
+ * demanderait de la sortir du flux, ce qui décalerait tout le reste. Le trait
+ * indique où elle se posera.
+ */
+.is-dragging {
+  opacity: 0.4;
+}
+
+.is-drop-before,
+.is-drop-after {
+  position: relative;
+}
+
+.is-drop-before::after,
+.is-drop-after::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.is-drop-before::after {
+  top: -1px;
+}
+
+.is-drop-after::after {
+  bottom: -1px;
+}
+
+/*
+ * Pendant un déplacement, plus rien ne se sélectionne : sans cela, faire
+ * glisser surligne les titres au passage.
+ */
+.is-dragging,
+.is-dragging * {
+  user-select: none;
+  -webkit-user-select: none;
+}

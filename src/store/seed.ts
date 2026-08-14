@@ -18,11 +18,16 @@ export function seed(): FolioState {
     updatedAt: now,
   }
 
+  /*
+   * Les rangs sont explicites : tout est créé dans la même milliseconde, et
+   * la date de création ne suffirait donc pas à départager ces frères.
+   */
   const prise: Section = {
     id: newId(),
     notebookId: notebook.id,
     name: 'Prise en main',
     createdAt: now,
+    order: now,
     updatedAt: now,
   }
   const idees: Section = {
@@ -30,6 +35,7 @@ export function seed(): FolioState {
     notebookId: notebook.id,
     name: 'Idées',
     createdAt: now,
+    order: now + 1,
     updatedAt: now,
   }
 
@@ -45,7 +51,7 @@ export function seed(): FolioState {
       '<h2>Rien à enregistrer</h2>',
       '<p>Tout est sauvegardé pendant que vous écrivez. L’indicateur en haut à droite passe de <em>Enregistrement…</em> à <em>Enregistré</em> tout seul.</p>',
       '<blockquote><p>Astuce : <code>Ctrl</code> + <code>K</code> ouvre la recherche, qui fouille les titres et le contenu de toutes vos pages, tous bloc-notes confondus.</p></blockquote>',
-    ]),
+    ], 1),
     page(prise.id, 'Mettre en forme', now, [
       '<p>La barre d’outils au-dessus de la page donne accès à tout le nécessaire.</p>',
       '<h2>Un titre de niveau 2</h2>',
@@ -56,7 +62,7 @@ export function seed(): FolioState {
       '<blockquote><p>Une citation, pour mettre une phrase de côté.</p></blockquote>',
       '<pre><code>const bonjour = () =&gt; "et un bloc de code."</code></pre>',
       '<p>Les raccourcis habituels fonctionnent : <code>Ctrl</code> + <code>B</code>, <code>Ctrl</code> + <code>I</code>, <code>Ctrl</code> + <code>U</code>. En début de ligne, <code>##</code> puis une espace crée un titre, <code>-</code> une liste, <code>&gt;</code> une citation.</p>',
-    ]),
+    ], 2),
     page(idees.id, 'À essayer', now, [
       '<p>Quelques pistes pour prendre vos marques :</p>',
       '<ul>',
@@ -65,7 +71,7 @@ export function seed(): FolioState {
       '<li><p>Renommer ou supprimer n’importe quel élément par le bouton <strong>⋯</strong> qui apparaît au survol.</p></li>',
       '</ul>',
       '<p>Et si cette page ne vous sert pas : supprimez-la, c’est votre classeur.</p>',
-    ]),
+    ], 3),
   ]
 
   return {
@@ -79,7 +85,7 @@ export function seed(): FolioState {
   }
 }
 
-function page(sectionId: string, title: string, now: number, lines: string[]): Page {
+function page(sectionId: string, title: string, now: number, lines: string[], rank = 0): Page {
   const html = lines.join('')
   return {
     id: newId(),
@@ -89,6 +95,8 @@ function page(sectionId: string, title: string, now: number, lines: string[]): P
     text: htmlToText(html),
     cipher: null,
     createdAt: now,
+    // Même raison que pour les sections : la milliseconde ne départage rien.
+    order: now + rank,
     updatedAt: now,
   }
 }

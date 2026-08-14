@@ -6,6 +6,7 @@ import type { EntityKind, FolioState, Id, Notebook, Page, Section, TrashedItem }
 import { FolioContext, type FolioApi, type SaveState, type TrashApi } from './context'
 import { describeFailure, openStore, STATE_VERSION, type Driver } from './persistence'
 import { unchanged } from './persistence/diff'
+import { appendOrder } from './order'
 import { reducer } from './reducer'
 import { seed } from './seed'
 import {
@@ -167,6 +168,8 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       name: `Bloc-notes ${current.notebooks.length + 1}`,
       color: nextColor(current.notebooks.map((n) => n.color)),
       createdAt: now,
+      // À la fin de la liste, derrière ce qui a pu y être déplacé à la main.
+      order: appendOrder(current.notebooks, now),
       updatedAt: now,
     }
     const section: Section = {
@@ -174,6 +177,7 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       notebookId: notebook.id,
       name: 'Section 1',
       createdAt: now,
+      order: now,
       updatedAt: now,
     }
     dispatch({ type: 'notebook/add', notebook, section, page: blankPage(section.id, now) })
@@ -182,12 +186,13 @@ export function FolioProvider({ children }: { children: ReactNode }) {
 
   const addSection = useCallback((notebookId: Id): Section => {
     const now = Date.now()
-    const count = latest.current.sections.filter((s) => s.notebookId === notebookId).length
+    const family = latest.current.sections.filter((s) => s.notebookId === notebookId)
     const section: Section = {
       id: newId(),
       notebookId,
-      name: `Section ${count + 1}`,
+      name: `Section ${family.length + 1}`,
       createdAt: now,
+      order: appendOrder(family, now),
       updatedAt: now,
     }
     dispatch({ type: 'section/add', section, page: blankPage(section.id, now) })
@@ -198,7 +203,9 @@ export function FolioProvider({ children }: { children: ReactNode }) {
   const pageAwaitingFocus = useRef<Id | null>(null)
 
   const addPage = useCallback((sectionId: Id): Page => {
-    const page = blankPage(sectionId, Date.now())
+    const now = Date.now()
+    const family = latest.current.pages.filter((p) => p.sectionId === sectionId)
+    const page = { ...blankPage(sectionId, now), order: appendOrder(family, now) }
     pageAwaitingFocus.current = page.id
     dispatch({ type: 'page/add', page })
     return page
@@ -307,6 +314,7 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       save,
       vault,
       sync,
+      reorder: (kind, id, to) => dispatch({ type: 'reorder', kind, id, to, now: Date.now() }),
       trash: trashApi,
       addNotebook,
       renameNotebook: (id, name) =>

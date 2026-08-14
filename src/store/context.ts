@@ -53,6 +53,12 @@ export interface FolioApi {
   writePage: (id: Id, html: string, text: string) => void
   removePage: (id: Id) => void
 
+  /**
+   * Déplace un élément à la place `to` parmi ses frères : les bloc-notes entre
+   * eux, les sections d'un bloc-notes, les pages d'une section.
+   */
+  reorder: (kind: 'notebook' | 'section' | 'page', id: Id, to: number) => void
+
   /** La corbeille : ce qui a été supprimé et qu'on peut encore remettre. */
   trash: TrashApi
 

@@ -9,6 +9,7 @@ import { ConfirmDialog } from './Modal'
 import { RowMenu } from './RowMenu'
 import { TrashDialog } from './TrashDialog'
 import { useLockMenu } from './useLockMenu'
+import { useReorder } from './useReorder'
 
 type Pending =
   | { kind: 'notebook'; id: Id; name: string; sections: number; pages: number }
@@ -20,7 +21,7 @@ type Pending =
  */
 export function Sidebar() {
   const folio = useFolio()
-  const { state, select, addNotebook, addSection, trash } = folio
+  const { state, select, addNotebook, addSection, trash, reorder } = folio
   const { notebook: activeNotebook, section: activeSection, sections } = useCurrentView()
   const pageCounts = usePageCounts()
 
@@ -30,6 +31,15 @@ export function Sidebar() {
   const [renaming, setRenaming] = useState<Id | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
   const [trashOpen, setTrashOpen] = useState(false)
+
+  const dragNotebooks = useReorder(
+    state.notebooks.map((n) => n.id),
+    (id, to) => reorder('notebook', id, to),
+  )
+  const dragSections = useReorder(
+    sections.map((s) => s.id),
+    (id, to) => reorder('section', id, to),
+  )
 
   const askDeleteNotebook = (id: Id, name: string) => {
     const owned = state.sections.filter((s) => s.notebookId === id)
@@ -77,14 +87,28 @@ export function Sidebar() {
             return (
               <li key={notebook.id} className="notebook-list__item">
                 <div
-                  className={`notebook-row ${isActive ? 'is-active' : ''}`}
+                  {...dragNotebooks.itemProps(notebook.id)}
+                  className={`notebook-row ${isActive ? 'is-active' : ''} ${
+                    dragNotebooks.dragging === notebook.id ? 'is-dragging' : ''
+                  } ${
+                    dragNotebooks.dropSide(notebook.id)
+                      ? `is-drop-${dragNotebooks.dropSide(notebook.id)}`
+                      : ''
+                  }`}
                   style={{ '--accent': color.hex } as React.CSSProperties}
-                  onClick={() => select({ notebookId: notebook.id })}
+                  onClick={() => {
+                    // Un dépôt finit par un clic sur la ligne : on ne veut pas
+                    // qu'il change aussi de bloc-notes.
+                    if (dragNotebooks.dragging) return
+                    select({ notebookId: notebook.id })
+                  }}
                   onDoubleClick={() => setRenaming(notebook.id)}
                   role="button"
                   tabIndex={0}
                   aria-current={isActive ? 'true' : undefined}
                   onKeyDown={(event) => {
+                    dragNotebooks.itemProps(notebook.id).onKeyDown(event)
+                    if (event.defaultPrevented) return
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault()
                       select({ notebookId: notebook.id })
@@ -128,18 +152,26 @@ export function Sidebar() {
                       {sections.map((section) => (
                         <li key={section.id}>
                           <div
+                            {...dragSections.itemProps(section.id)}
                             className={`section-row ${
                               section.id === activeSection?.id ? 'is-active' : ''
+                            } ${dragSections.dragging === section.id ? 'is-dragging' : ''} ${
+                              dragSections.dropSide(section.id)
+                                ? `is-drop-${dragSections.dropSide(section.id)}`
+                                : ''
                             }`}
                             role="button"
                             tabIndex={0}
                             aria-current={section.id === activeSection?.id ? 'true' : undefined}
                             onClick={() => {
+                              if (dragSections.dragging) return
                               select({ sectionId: section.id })
                               show('pages')
                             }}
                             onDoubleClick={() => setRenaming(section.id)}
                             onKeyDown={(event) => {
+                              dragSections.itemProps(section.id).onKeyDown(event)
+                              if (event.defaultPrevented) return
                               if (event.key === 'Enter' || event.key === ' ') {
                                 event.preventDefault()
                                 select({ sectionId: section.id })
