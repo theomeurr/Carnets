@@ -173,15 +173,6 @@ function SignIn({ onDone }: { onDone: () => void }) {
       >
         {creating ? 'J’ai déjà un compte' : 'Pas encore de compte ? En créer un'}
       </button>
-
-      <p className="account-page__note">
-        <IconLock />
-        <span>
-          <strong>Le mot de passe du compte n’est pas celui de vos notes verrouillées.</strong> Une
-          note protégée voyage chiffrée : le serveur n’en voit que du bruit, et son mot de passe ne
-          quitte jamais cet appareil.
-        </span>
-      </p>
     </form>
   )
 }
