@@ -4,6 +4,32 @@ import type { Changeset } from './merge'
 export interface Account {
   id: string
   email: string
+  /**
+   * Ce qui a été donné à l'inscription. Vide pour les comptes créés avant que
+   * Folio ne le demande : l'affichage doit donc toujours prévoir le cas.
+   */
+  firstName: string
+  lastName: string
+}
+
+/** L'identité demandée à l'inscription. */
+export interface Identity {
+  firstName: string
+  lastName: string
+}
+
+/**
+ * Comment nommer quelqu'un à l'écran. Le prénom seul suffit dans un bandeau ;
+ * `full` sert là où l'on présente le compte. On retombe sur la partie gauche
+ * de l'adresse pour les comptes sans identité — jamais sur un vide.
+ */
+export function nameOf(account: Account): { short: string; full: string } {
+  const full = `${account.firstName} ${account.lastName}`.trim()
+  const fallback = account.email.split('@')[0]
+  return {
+    short: account.firstName.trim() || fallback,
+    full: full || fallback,
+  }
 }
 
 /**
@@ -18,7 +44,7 @@ export interface Remote {
   /** Prévient à chaque connexion ou déconnexion. Rend de quoi se désabonner. */
   onAccountChange(listener: (account: Account | null) => void): () => void
 
-  signUp(email: string, password: string): Promise<Account>
+  signUp(email: string, password: string, identity: Identity): Promise<Account>
   signIn(email: string, password: string): Promise<Account>
   signOut(): Promise<void>
 

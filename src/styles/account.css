@@ -1,0 +1,166 @@
+/* La page de connexion, et la page du compte une fois connecté. */
+
+.account-page {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  /* Opaque : c'est une page, pas une fenêtre posée sur l'application. */
+  background: var(--bg);
+  padding: 32px 20px;
+}
+
+.account-page__sheet {
+  width: min(380px, 100%);
+  /* La page se centre quand elle tient, et se pose en haut quand elle
+     dépasse — sans quoi le début du formulaire sortirait par le haut. */
+  margin: auto;
+}
+
+.account-page__brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 26px;
+}
+
+.account-page__mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #6366f1, #a855f7 55%, #ec4899);
+}
+
+.account-page__wordmark {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.account-page__form {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-page__title {
+  margin: 0 0 8px;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.account-page__lead {
+  margin: 0 0 20px;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* Prénom et nom côte à côte : ils se lisent comme une seule réponse. */
+.account-page__pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.account-page__form .field + .field,
+.account-page__pair + .field {
+  margin-top: 12px;
+}
+
+.account-page__pair .field + .field {
+  margin-top: 0;
+}
+
+.account-page__submit {
+  justify-content: center;
+  width: 100%;
+  height: 40px;
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.account-page__submit:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.account-page__switch,
+.account-page__skip,
+.account-page__signout {
+  align-self: center;
+  padding: 8px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.account-page__switch {
+  margin-top: 10px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Rester en local est un choix ordinaire, pas un renoncement : on l'écrit
+   sobrement, sans le déguiser en bouton principal ni le cacher. */
+.account-page__skip {
+  margin-top: 18px;
+  color: var(--text-mute);
+}
+
+.account-page__skip:hover {
+  color: var(--text);
+}
+
+.account-page__signout {
+  margin-top: 6px;
+  color: var(--danger);
+}
+
+.account-page__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 24px 0 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.account-page__note svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.account-page__note strong {
+  color: var(--text);
+}
+
+.account-page__state {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.account-page__state svg {
+  flex: none;
+  margin-top: 1px;
+}

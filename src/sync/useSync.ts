@@ -3,7 +3,7 @@ import type { Action } from '../store/reducer'
 import type { FolioState } from '../types'
 import { syncConfig } from './config'
 import { NEW_DEVICE, pushOnce, syncOnce, type Cursors } from './engine'
-import { readableAuthError, type Account, type Remote } from './remote'
+import { readableAuthError, type Account, type Identity, type Remote } from './remote'
 import { supabaseRemote } from './supabase'
 
 export type SyncStatus =
@@ -17,13 +17,20 @@ export interface SyncApi {
   /** `null` si la synchronisation n'est pas configurée du tout. */
   available: boolean
   account: Account | null
+  /**
+   * Vrai une fois qu'on sait si quelqu'un est connecté. La session est relue
+   * du disque à l'ouverture, donc `account` vaut `null` un court instant même
+   * pour un compte connecté : sans ce drapeau, la page de connexion
+   * apparaîtrait puis disparaîtrait sous les yeux.
+   */
+  resolved: boolean
   status: SyncStatus
   /** Renseigné quand `status` vaut `error`. */
   reason: string | null
   lastSyncAt: number | null
 
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, identity: Identity) => Promise<void>
   signOut: () => Promise<void>
   /** Déclenche un tour immédiatement. */
   syncNow: () => void
@@ -91,6 +98,7 @@ export function useSync(
   }, [])
 
   const [account, setAccount] = useState<Account | null>(null)
+  const [resolved, setResolved] = useState(false)
   const [status, setStatus] = useState<SyncStatus>('off')
   const [reason, setReason] = useState<string | null>(null)
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null)
@@ -104,8 +112,15 @@ export function useSync(
   // ----- Le compte -----
 
   useEffect(() => {
-    if (!remote) return
-    void remote.currentAccount().then(setAccount)
+    if (!remote) {
+      // Rien à attendre : sans serveur configuré, la question est tranchée.
+      setResolved(true)
+      return
+    }
+    void remote.currentAccount().then((found) => {
+      setAccount(found)
+      setResolved(true)
+    })
     return remote.onAccountChange(setAccount)
   }, [remote])
 
@@ -208,9 +223,9 @@ export function useSync(
   )
 
   const signUp = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, identity: Identity) => {
       if (!remote) throw new Error('La synchronisation n’est pas configurée.')
-      setAccount(await remote.signUp(email, password))
+      setAccount(await remote.signUp(email, password, identity))
     },
     [remote],
   )
@@ -236,6 +251,7 @@ export function useSync(
     () => ({
       available: remote !== null,
       account,
+      resolved,
       status,
       reason,
       lastSyncAt,
@@ -244,6 +260,6 @@ export function useSync(
       signOut,
       syncNow,
     }),
-    [remote, account, status, reason, lastSyncAt, signIn, signUp, signOut, syncNow],
+    [remote, account, resolved, status, reason, lastSyncAt, signIn, signUp, signOut, syncNow],
   )
 }

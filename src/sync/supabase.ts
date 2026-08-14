@@ -20,8 +20,24 @@ export function supabaseRemote(config: SyncConfig): Remote {
     },
   })
 
-  const account = (user: { id: string; email?: string } | null | undefined): Account | null =>
-    user ? { id: user.id, email: user.email ?? '' } : null
+  /**
+   * Le prénom et le nom sont rangés dans les métadonnées du compte Supabase.
+   * Aucune table de notre côté : ils suivent la session, reviennent seuls à
+   * chaque connexion, et disparaissent avec le compte.
+   */
+  const text = (value: unknown): string => (typeof value === 'string' ? value : '')
+
+  const account = (
+    user: { id: string; email?: string; user_metadata?: Record<string, unknown> } | null | undefined,
+  ): Account | null =>
+    user
+      ? {
+          id: user.id,
+          email: user.email ?? '',
+          firstName: text(user.user_metadata?.first_name),
+          lastName: text(user.user_metadata?.last_name),
+        }
+      : null
 
   const failed: (message: string) => never = (message) => {
     throw new AuthError(readableAuthError(message))
@@ -40,8 +56,12 @@ export function supabaseRemote(config: SyncConfig): Remote {
       return () => data.subscription.unsubscribe()
     },
 
-    async signUp(email, password) {
-      const { data, error } = await client.auth.signUp({ email, password })
+    async signUp(email, password, identity) {
+      const { data, error } = await client.auth.signUp({
+        email,
+        password,
+        options: { data: { first_name: identity.firstName, last_name: identity.lastName } },
+      })
       if (error) failed(error.message)
       const created = account(data.user)
       // Sans session, c'est que la confirmation par courriel est exigée.

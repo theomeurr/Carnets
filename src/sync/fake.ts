@@ -1,5 +1,5 @@
 import type { Changeset } from './merge'
-import { AuthError, type Account, type Remote } from './remote'
+import { AuthError, type Account, type Identity, type Remote } from './remote'
 
 /**
  * Un serveur en mémoire, qui se comporte comme le vrai : il range ce qu'on
@@ -25,6 +25,11 @@ export function fakeRemote(): Remote & {
   let account: Account | null = null
   const listeners = new Set<(account: Account | null) => void>()
   const bells = new Set<() => void>()
+  /**
+   * Comme les métadonnées du vrai serveur : l'identité donnée à l'inscription
+   * est conservée et revient à chaque connexion suivante.
+   */
+  const identities = new Map<string, Identity>()
 
   const remote = {
     offline: false,
@@ -39,15 +44,17 @@ export function fakeRemote(): Remote & {
       return () => listeners.delete(listener)
     },
 
-    async signUp(email: string) {
-      account = { id: 'compte', email }
+    async signUp(email: string, _password: string, identity: Identity) {
+      identities.set(email, { ...identity })
+      account = { id: 'compte', email, ...identity }
       listeners.forEach((l) => l(account))
       return account
     },
 
     async signIn(email: string, password: string) {
       if (password === 'faux') throw new AuthError('Adresse ou mot de passe incorrect.')
-      account = { id: 'compte', email }
+      const known = identities.get(email) ?? { firstName: '', lastName: '' }
+      account = { id: 'compte', email, ...known }
       listeners.forEach((l) => l(account))
       return account
     },

@@ -1,4 +1,5 @@
 import { useFolio } from '../store/useFolio'
+import { nameOf } from '../sync/remote'
 import { IconChevron, IconCloud as IconSync } from './Icons'
 import { useMobilePane } from './paneContext'
 import { IconAlert, IconCheck, IconCloud, IconLock, IconSearch } from './Icons'
@@ -58,7 +59,7 @@ export function TopBar({ onSearch, onAccount }: { onSearch: () => void; onAccoun
           title={accountTitle(sync)}
         >
           <IconSync />
-          {sync.account ? sync.account.email.split('@')[0] : 'Se connecter'}
+          {sync.account ? nameOf(sync.account).short : 'Se connecter'}
         </button>
       )}
 
@@ -76,13 +77,15 @@ export function TopBar({ onSearch, onAccount }: { onSearch: () => void; onAccoun
   )
 }
 
+// Le bouton n'affiche que le prénom ; l'infobulle rappelle donc de quel
+// compte il s'agit, ce que le prénom seul ne dit pas.
 function accountTitle(sync: ReturnType<typeof useFolio>['sync']): string {
   if (!sync.account) return 'Se connecter pour retrouver ses notes sur ses autres appareils'
-  if (sync.status === 'syncing') return 'Synchronisation en cours…'
-  if (sync.status === 'error') return sync.reason ?? 'Le dernier échange a échoué'
-  return sync.lastSyncAt
-    ? `À jour — dernier échange à ${new Date(sync.lastSyncAt).toLocaleTimeString('fr-FR')}`
-    : 'Connecté'
+  const who = sync.account.email
+  if (sync.status === 'syncing') return `${who} — synchronisation en cours…`
+  if (sync.status === 'error') return `${who} — ${sync.reason ?? 'le dernier échange a échoué'}`
+  if (!sync.lastSyncAt) return `${who} — connecté`
+  return `${who} — à jour, dernier échange à ${new Date(sync.lastSyncAt).toLocaleTimeString('fr-FR')}`
 }
 
 function label(status: 'saved' | 'saving' | 'error'): string {
