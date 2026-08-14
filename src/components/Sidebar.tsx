@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { colorOf } from '../lib/colors'
 import { useFolio, useCurrentView, usePageCounts } from '../store/useFolio'
 import type { Id } from '../types'
-import { IconLock, IconNotebook, IconPlus } from './Icons'
+import { IconLock, IconNotebook, IconPlus, IconTrash } from './Icons'
 import { useMobilePane } from './paneContext'
 import { InlineRename } from './InlineRename'
 import { ConfirmDialog } from './Modal'
 import { RowMenu } from './RowMenu'
+import { TrashDialog } from './TrashDialog'
 import { useLockMenu } from './useLockMenu'
 
 type Pending =
@@ -19,7 +20,7 @@ type Pending =
  */
 export function Sidebar() {
   const folio = useFolio()
-  const { state, select, addNotebook, addSection } = folio
+  const { state, select, addNotebook, addSection, trash } = folio
   const { notebook: activeNotebook, section: activeSection, sections } = useCurrentView()
   const pageCounts = usePageCounts()
 
@@ -28,6 +29,7 @@ export function Sidebar() {
 
   const [renaming, setRenaming] = useState<Id | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
+  const [trashOpen, setTrashOpen] = useState(false)
 
   const askDeleteNotebook = (id: Id, name: string) => {
     const owned = state.sections.filter((s) => s.notebookId === id)
@@ -204,10 +206,26 @@ export function Sidebar() {
         </ul>
       </div>
 
-      <button type="button" className="sidebar__add" onClick={() => setRenaming(addNotebook().id)}>
-        <IconPlus />
-        Nouveau bloc-notes
-      </button>
+      <div className="sidebar__foot">
+        <button type="button" className="sidebar__add" onClick={() => setRenaming(addNotebook().id)}>
+          <IconPlus />
+          Nouveau bloc-notes
+        </button>
+        <button
+          type="button"
+          className="sidebar__trash"
+          aria-label="Corbeille"
+          title="Ce qui a été supprimé, encore récupérable"
+          onClick={() => setTrashOpen(true)}
+        >
+          <IconTrash />
+          {trash.items.length > 0 && (
+            <span className="sidebar__trash-count">{trash.items.length}</span>
+          )}
+        </button>
+      </div>
+
+      {trashOpen && <TrashDialog onClose={() => setTrashOpen(false)} />}
 
       {dialogs}
 
@@ -219,12 +237,14 @@ export function Sidebar() {
               <p>
                 <strong>{pending.name}</strong> sera supprimé, avec{' '}
                 {countLabel(pending.sections, 'section', 'sections')} et{' '}
-                {countLabel(pending.pages, 'page', 'pages')}. Cette action est définitive.
+                {countLabel(pending.pages, 'page', 'pages')}. Le tout part à la corbeille, où il
+                reste récupérable pendant 30 jours.
               </p>
             ) : (
               <p>
                 <strong>{pending.name}</strong> sera supprimée, avec{' '}
-                {countLabel(pending.pages, 'page', 'pages')}. Cette action est définitive.
+                {countLabel(pending.pages, 'page', 'pages')}. Le tout part à la corbeille, où il
+                reste récupérable pendant 30 jours.
               </p>
             )
           }

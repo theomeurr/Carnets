@@ -1,5 +1,5 @@
 import type { FolioState } from '../types'
-import { isEmpty, localChanges, merge, type Changeset } from './merge'
+import { discardedBy, isEmpty, localChanges, merge, type Changeset, type Discarded } from './merge'
 import type { Remote } from './remote'
 
 /**
@@ -34,6 +34,11 @@ export interface SyncOutcome {
   received: boolean
   /** Vrai si l'on a envoyé quelque chose. */
   sent: boolean
+  /**
+   * Ce que la fusion a retiré parce qu'un autre appareil l'a supprimé — de quoi
+   * garnir la corbeille locale, qui ne voyage pas.
+   */
+  discarded: Discarded[]
 }
 
 /**
@@ -59,6 +64,8 @@ export async function syncOnce(
 ): Promise<SyncOutcome> {
   const incoming = await remote.pull(cursors.pulled)
   const received = !isEmpty(incoming)
+  // Relevé avant la fusion : après, ce qui part n'existe plus.
+  const discarded = received ? discardedBy(state, incoming) : []
   const merged = received ? merge(state, incoming) : state
 
   // Le nouveau repère de lecture vient des données elles-mêmes, jamais de
@@ -71,7 +78,7 @@ export async function syncOnce(
   const sent = !isEmpty(outgoing)
   if (sent) await remote.push(outgoing)
 
-  return { state: merged, cursors: { pulled, pushed: now }, received, sent }
+  return { state: merged, cursors: { pulled, pushed: now }, received, sent, discarded }
 }
 
 /**
@@ -97,10 +104,10 @@ export async function pushOnce(
 ): Promise<SyncOutcome> {
   const outgoing = localChanges(state, Math.max(0, cursors.pushed - PUSH_OVERLAP_MS))
   const sent = !isEmpty(outgoing)
-  if (!sent) return { state, cursors, received: false, sent: false }
+  if (!sent) return { state, cursors, received: false, sent: false, discarded: [] }
 
   await remote.push(outgoing)
-  return { state, cursors: { ...cursors, pushed: now }, received: false, sent: true }
+  return { state, cursors: { ...cursors, pushed: now }, received: false, sent: true, discarded: [] }
 }
 
 /** La date la plus récente d'un lot reçu, ou 0 s'il est vide. */

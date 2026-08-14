@@ -233,6 +233,55 @@
   color: var(--text-mute);
 }
 
+/* ---------- Listes de tâches ---------- */
+
+/*
+ * La case remplace la puce, donc pas de retrait ni de marqueur. Tiptap rend
+ * chaque tâche comme `<li><label><input></label><div>texte</div></li>`.
+ */
+.prose ul[data-type='taskList'] {
+  padding-left: 0;
+  list-style: none;
+}
+
+.prose ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6em;
+}
+
+.prose ul[data-type='taskList'] li > label {
+  flex: none;
+  /* Aligne la case sur la première ligne du texte plutôt que sur le haut
+     du bloc, qui la ferait flotter au-dessus. */
+  margin-top: 0.18em;
+  user-select: none;
+}
+
+.prose ul[data-type='taskList'] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.prose ul[data-type='taskList'] input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Une tâche faite s'efface sans disparaître : on la relit encore. */
+.prose ul[data-type='taskList'] li[data-checked='true'] > div {
+  color: var(--text-mute);
+  text-decoration: line-through;
+}
+
+/* Une sous-liste de tâches se décale, elle. */
+.prose ul[data-type='taskList'] ul[data-type='taskList'] {
+  padding-left: 0.35em;
+}
+
 .prose blockquote {
   padding: 0.15em 0 0.15em 1.1em;
   border-left: 3px solid var(--accent);

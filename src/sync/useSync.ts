@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from 'react'
 import type { Action } from '../store/reducer'
-import type { FolioState } from '../types'
+import type { FolioState, TrashedItem } from '../types'
 import { syncConfig } from './config'
 import { NEW_DEVICE, pushOnce, syncOnce, type Cursors } from './engine'
 import { readableAuthError, type Account, type Identity, type Remote } from './remote'
@@ -91,6 +91,12 @@ export function useSync(
   latest: { current: FolioState },
   dispatch: Dispatch<Action>,
   ready: boolean,
+  /**
+   * Recueille ce qu'une fusion s'apprête à effacer. Une note supprimée sur le
+   * téléphone disparaîtrait sinon du PC sans y laisser de quoi la remettre :
+   * la pierre tombale voyage, pas le contenu.
+   */
+  bin: (items: TrashedItem[]) => void,
 ): SyncApi {
   const remote = useMemo<Remote | null>(() => {
     const config = syncConfig()
@@ -139,6 +145,19 @@ export function useSync(
         mode === 'push'
           ? await pushOnce(remote, latest.current, cursors)
           : await syncOnce(remote, latest.current, cursors)
+      // Ce qu'un autre appareil a supprimé entre en corbeille ici aussi : la
+      // pierre tombale voyage, le contenu non.
+      if (outcome.discarded.length > 0) {
+        bin(
+          outcome.discarded.map(({ kind, entity, deletedAt }) => ({
+            key: `${kind}:${entity.id}`,
+            kind,
+            id: entity.id,
+            deletedAt,
+            entity,
+          })),
+        )
+      }
       // Ce qui arrive du serveur repasse par le reducer, donc par `settle` :
       // la page ouverte a pu être supprimée ailleurs.
       if (outcome.received) dispatch({ type: 'state/hydrate', state: outcome.state })
@@ -154,7 +173,7 @@ export function useSync(
       running.current = false
     }
     },
-    [remote, latest, dispatch],
+    [remote, latest, dispatch, bin],
   )
 
   const syncNow = useCallback(() => {

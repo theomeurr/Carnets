@@ -1,0 +1,118 @@
+/*
+ * L'impression — et donc l'export PDF, « Enregistrer au format PDF » étant une
+ * destination d'impression sur tous les systèmes visés.
+ *
+ * La feuille montée par `PrintSheet` est invisible à l'écran et seule visible
+ * au papier. On ne cache pas l'application par `visibility`, qui laisse la
+ * place vide et provoque des pages blanches : on la retire de la mise en page.
+ */
+
+.print-sheet {
+  display: none;
+}
+
+@media print {
+  .app,
+  .account-page,
+  .modal-backdrop,
+  .search-backdrop,
+  .update-prompt {
+    display: none !important;
+  }
+
+  .print-sheet {
+    display: block;
+    color: #000;
+    background: #fff;
+    font-size: 11.5pt;
+    line-height: 1.55;
+  }
+
+  /* Marges laissées à l'imprimante, qui connaît le format choisi. */
+  @page {
+    margin: 18mm 16mm;
+  }
+
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+
+  .print-sheet__path {
+    margin: 0 0 4mm;
+    color: #555;
+    font-size: 9pt;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .print-sheet__title {
+    margin: 0;
+    font-size: 20pt;
+    font-weight: 650;
+    letter-spacing: -0.015em;
+  }
+
+  .print-sheet__date {
+    margin: 2mm 0 6mm;
+    padding-bottom: 4mm;
+    border-bottom: 0.4pt solid #bbb;
+    color: #555;
+    font-size: 9pt;
+  }
+
+  /*
+   * Le corps garde la mise en forme de l'éditeur, avec les couleurs d'écran
+   * remplacées par de l'encre : les variables de thème pointeraient sinon sur
+   * un fond sombre, illisible sur papier.
+   */
+  .print-sheet__body {
+    color: #000;
+  }
+
+  .print-sheet__body a {
+    color: #000;
+    text-decoration: underline;
+  }
+
+  .print-sheet__body blockquote {
+    border-left: 2pt solid #999;
+    color: #333;
+  }
+
+  .print-sheet__body :is(code, pre) {
+    background: #f2f2f2;
+    color: #000;
+  }
+
+  .print-sheet__body pre {
+    padding: 3mm;
+    border: 0.4pt solid #ddd;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* Un titre ne reste pas seul en bas de page, et un bloc ne se coupe pas. */
+  .print-sheet__body :is(h1, h2, h3) {
+    break-after: avoid;
+  }
+
+  .print-sheet__body :is(p, li, blockquote, pre) {
+    break-inside: avoid;
+  }
+
+  /* Les cases à cocher s'impriment cochées ou non, pas en gris uniforme. */
+  .print-sheet__body input[type='checkbox'] {
+    appearance: none;
+    width: 3mm;
+    height: 3mm;
+    border: 0.5pt solid #000;
+    border-radius: 0.5mm;
+  }
+
+  .print-sheet__body input[type='checkbox']:checked {
+    background: #000;
+  }
+}

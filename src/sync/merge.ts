@@ -1,4 +1,4 @@
-import type { EntityKind, FolioState, Id, Tombstone } from '../types'
+import type { EntityKind, FolioState, Id, Lock, Notebook, Page, Section, Tombstone } from '../types'
 
 /**
  * Ce qui circule entre un appareil et le serveur : les objets modifiés depuis
@@ -57,12 +57,7 @@ export function localChanges(state: FolioState, since: number): Changeset {
  * reste récupérable côté serveur tant que la trace n'a pas expiré.
  */
 export function merge(local: FolioState, incoming: Changeset): FolioState {
-  // Toutes les suppressions connues, locales et distantes, indexées.
-  const graves = new Map<string, number>()
-  for (const t of [...local.tombstones, ...incoming.tombstones]) {
-    const key = `${t.kind}:${t.id}`
-    graves.set(key, Math.max(graves.get(key) ?? 0, t.deletedAt))
-  }
+  const graves = tombstoneIndex(local, incoming)
 
   const merged = {
     ...local,
@@ -74,6 +69,53 @@ export function merge(local: FolioState, incoming: Changeset): FolioState {
   }
 
   return merged
+}
+
+/** Toutes les suppressions connues, locales et distantes, indexées. */
+function tombstoneIndex(local: FolioState, incoming: Changeset): Map<string, number> {
+  const graves = new Map<string, number>()
+  for (const t of [...local.tombstones, ...incoming.tombstones]) {
+    const key = `${t.kind}:${t.id}`
+    graves.set(key, Math.max(graves.get(key) ?? 0, t.deletedAt))
+  }
+  return graves
+}
+
+/**
+ * Ce que cette fusion va retirer de l'état local, avec la date de la
+ * suppression — de quoi alimenter la corbeille quand le geste vient d'un autre
+ * appareil. Sans cela, une note supprimée sur le téléphone disparaîtrait du
+ * PC sans y laisser de quoi la remettre.
+ *
+ * Fonction séparée plutôt que second retour de `merge` : celle-ci reste une
+ * fusion, et la corbeille n'a pas à s'inviter dans sa signature.
+ */
+export interface Discarded {
+  kind: EntityKind
+  entity: Notebook | Section | Page | Lock
+  deletedAt: number
+}
+
+export function discardedBy(local: FolioState, incoming: Changeset): Discarded[] {
+  const graves = tombstoneIndex(local, incoming)
+  const doomed: Discarded[] = []
+
+  const sweep = (kind: EntityKind, entities: readonly { id: Id; updatedAt: number }[]) => {
+    for (const entity of entities) {
+      const deletedAt = graves.get(`${kind}:${entity.id}`)
+      // Même règle qu'à la fusion, et c'est ce qui compte : la corbeille doit
+      // recueillir exactement ce que `mergeCollection` va retirer.
+      if (deletedAt !== undefined && deletedAt >= entity.updatedAt) {
+        doomed.push({ kind, entity: entity as Discarded['entity'], deletedAt })
+      }
+    }
+  }
+
+  sweep('notebook', local.notebooks)
+  sweep('section', local.sections)
+  sweep('page', local.pages)
+  sweep('lock', local.locks)
+  return doomed
 }
 
 function mergeCollection<T extends { id: Id; updatedAt: number; createdAt: number }>(

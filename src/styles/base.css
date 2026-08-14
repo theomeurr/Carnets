@@ -607,3 +607,71 @@ mark {
   flex: none;
   margin-top: 1px;
 }
+
+/* ---------- Corbeille ---------- */
+
+.trash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 340px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.trash-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.trash-row:hover {
+  background: var(--hover);
+}
+
+.trash-row__icon {
+  display: flex;
+  flex: none;
+  color: var(--text-mute);
+}
+
+.trash-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.trash-row__name {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash-row__meta {
+  color: var(--text-mute);
+  font-size: 12px;
+}
+
+.trash-row__restore {
+  flex: none;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+
+.trash-row__purge {
+  flex: none;
+  color: var(--text-mute);
+}
+
+.trash-row__purge:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}

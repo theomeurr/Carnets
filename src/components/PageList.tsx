@@ -7,6 +7,7 @@ import { IconLock, IconPlus } from './Icons'
 import { useMobilePane } from './paneContext'
 import { InlineRename } from './InlineRename'
 import { ConfirmDialog } from './Modal'
+import { PrintSheet, type Printable } from './PrintSheet'
 import { RowMenu } from './RowMenu'
 import { useLockMenu } from './useLockMenu'
 
@@ -20,6 +21,7 @@ export function PageList() {
 
   const [renaming, setRenaming] = useState<Id | null>(null)
   const [pending, setPending] = useState<{ id: Id; title: string } | null>(null)
+  const [printing, setPrinting] = useState<Printable | null>(null)
 
   const accent = colorOf(notebook?.color).hex
 
@@ -121,6 +123,21 @@ export function PageList() {
                         setPending({ id: page.id, title: content ? title : 'Page verrouillée' })
                       }
                       lock={controlsFor('page', page.id, content ? title : 'Page verrouillée')}
+                      // Une page fermée n'a rien de lisible à imprimer : son
+                      // contenu est chiffré et la clé n'existe pas ici.
+                      onPrint={
+                        content
+                          ? () =>
+                              setPrinting({
+                                title,
+                                breadcrumb: [notebook?.name, section?.name]
+                                  .filter(Boolean)
+                                  .join(' › '),
+                                html: content.html,
+                                updatedAt: page.updatedAt,
+                              })
+                          : undefined
+                      }
                     />
                   </div>
                   <p className="page-card__preview">
@@ -146,7 +163,8 @@ export function PageList() {
           title="Supprimer la page ?"
           message={
             <p>
-              <strong>{pending.title}</strong> sera supprimée définitivement.
+              <strong>{pending.title}</strong> part à la corbeille, où elle reste récupérable
+              pendant 30 jours.
             </p>
           }
           onConfirm={() => {
@@ -156,6 +174,8 @@ export function PageList() {
           onCancel={() => setPending(null)}
         />
       )}
+
+      {printing && <PrintSheet page={printing} onDone={() => setPrinting(null)} />}
     </section>
   )
 }

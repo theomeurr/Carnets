@@ -1,6 +1,14 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { NOTEBOOK_COLORS } from '../lib/colors'
-import { IconLock, IconMore, IconPalette, IconPencil, IconTrash, IconUnlock } from './Icons'
+import {
+  IconLock,
+  IconMore,
+  IconPalette,
+  IconPencil,
+  IconPrinter,
+  IconTrash,
+  IconUnlock,
+} from './Icons'
 import type { LockControls } from './useLockMenu'
 
 export interface RowMenuProps {
@@ -10,13 +18,15 @@ export interface RowMenuProps {
   /** Fourni pour les bloc-notes seulement : ajoute le choix de la couleur. */
   color?: { value: string; onChange: (color: string) => void }
   lock?: LockControls
+  /** Fourni pour les pages lisibles : imprimer ou enregistrer en PDF. */
+  onPrint?: () => void
 }
 
 /**
  * Le menu « ⋯ » d'une ligne : renommer, recolorer, supprimer. Il se ferme au
  * clic à l'extérieur, à Échap, et rend le focus au bouton qui l'a ouvert.
  */
-export function RowMenu({ label, onRename, onDelete, color, lock }: RowMenuProps) {
+export function RowMenu({ label, onRename, onDelete, color, lock, onPrint }: RowMenuProps) {
   const [open, setOpen] = useState(false)
   const wrapper = useRef<HTMLDivElement>(null)
   const button = useRef<HTMLButtonElement>(null)
@@ -71,6 +81,12 @@ export function RowMenu({ label, onRename, onDelete, color, lock }: RowMenuProps
           <MenuItem icon={<IconPencil />} onClick={run(onRename)}>
             Renommer
           </MenuItem>
+
+          {onPrint && (
+            <MenuItem icon={<IconPrinter />} onClick={run(onPrint)}>
+              Imprimer ou PDF
+            </MenuItem>
+          )}
 
           {color && (
             <div className="row-menu__colors" role="group" aria-label="Couleur du bloc-notes">

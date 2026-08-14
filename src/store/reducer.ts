@@ -8,6 +8,7 @@ import type {
   Section,
   Selection,
   Tombstone,
+  TrashedItem,
 } from '../types'
 
 export type Action =
@@ -24,6 +25,8 @@ export type Action =
   /** Écriture d'une page sous verrou : seul le chiffré change. */
   | { type: 'page/sealed'; id: Id; cipher: string; now: number }
   | { type: 'page/remove'; id: Id; now: number }
+  /** Remet en place ce qui sortait de la corbeille, daté de `now`. */
+  | { type: 'trash/restore'; items: TrashedItem[]; now: number }
   | { type: 'select'; patch: Partial<Selection> }
   | { type: 'state/hydrate'; state: FolioState }
   /** Pose le verrou et remplace d'un bloc les pages par leur version chiffrée. */
@@ -186,6 +189,45 @@ export function reducer(state: FolioState, action: Action): FolioState {
         pages: replacePages(state.pages, action.pages),
         tombstones: bury(state.tombstones, action.now, [['lock', action.id]]),
       })
+
+    /*
+     * La restauration ne demande rien de particulier à la synchronisation :
+     * celle-ci n'efface un objet que si sa suppression est plus récente que
+     * lui. Il suffit donc de le remettre avec une date postérieure, et il
+     * revient sur les autres appareils tout seul. On retire aussi la pierre
+     * tombale locale — inutile désormais, et une trace en moins à relire.
+     */
+    case 'trash/restore': {
+      const revived = action.items.map((entry) => ({
+        ...entry,
+        entity: { ...entry.entity, updatedAt: action.now },
+      }))
+      const of = (kind: EntityKind) =>
+        revived.filter((entry) => entry.kind === kind).map((entry) => entry.entity)
+      const back = <T extends { id: Id }>(existing: T[], fresh: T[]): T[] => {
+        if (fresh.length === 0) return existing
+        const ids = new Set(fresh.map((entity) => entity.id))
+        return [...existing.filter((entity) => !ids.has(entity.id)), ...fresh]
+      }
+      const raised = new Set(revived.map((entry) => `${entry.kind}:${entry.id}`))
+      const page = revived.find((entry) => entry.kind === 'page')?.entity as Page | undefined
+      const section = revived.find((entry) => entry.kind === 'section')?.entity as Section | undefined
+      return settle({
+        ...state,
+        notebooks: back(state.notebooks, of('notebook') as Notebook[]),
+        sections: back(state.sections, of('section') as Section[]),
+        pages: back(state.pages, of('page') as Page[]),
+        locks: back(state.locks, of('lock') as Lock[]),
+        tombstones: state.tombstones.filter((t) => !raised.has(`${t.kind}:${t.id}`)),
+        // On ouvre ce qui vient de revenir : sans cela, la page réapparaît
+        // quelque part dans le classeur sans qu'on sache où.
+        selection: page
+          ? { ...state.selection, sectionId: page.sectionId, pageId: page.id }
+          : section
+            ? { ...state.selection, notebookId: section.notebookId, sectionId: section.id }
+            : state.selection,
+      })
+    }
 
     case 'select':
       return settle({ ...state, selection: { ...state.selection, ...action.patch } })

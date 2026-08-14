@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import type { FolioState, Id, Notebook, Page, Section, Selection } from '../types'
+import type { FolioState, Id, Notebook, Page, Section, Selection, TrashedItem } from '../types'
 
 import type { DriverKind } from './persistence'
 import type { SyncApi } from '../sync/useSync'
@@ -53,7 +53,25 @@ export interface FolioApi {
   writePage: (id: Id, html: string, text: string) => void
   removePage: (id: Id) => void
 
+  /** La corbeille : ce qui a été supprimé et qu'on peut encore remettre. */
+  trash: TrashApi
+
   select: (patch: Partial<Selection>) => void
+}
+
+export interface TrashApi {
+  /** Les pages, sections et bloc-notes supprimés, du plus récent au plus ancien. */
+  items: TrashedItem[]
+  /** Vrai quand le support ne sait pas tenir de corbeille (repli localStorage). */
+  unavailable: boolean
+  /**
+   * Remet l'élément en place, avec ses ancêtres disparus s'il en manque.
+   * Rend `false` quand plus rien ne peut l'accueillir.
+   */
+  restore: (key: string) => boolean
+  /** Supprime définitivement une entrée. */
+  purge: (key: string) => void
+  empty: () => void
 }
 
 export const FolioContext = createContext<FolioApi | null>(null)

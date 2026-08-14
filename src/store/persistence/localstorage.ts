@@ -31,6 +31,19 @@ export function openLocalStorage(): Driver {
       if (unchanged(previous, next)) return
       localStorage.setItem(LEGACY_KEY, JSON.stringify({ ...next, version: STATE_VERSION }))
     },
+
+    /*
+     * Pas de corbeille sur ce support. Il réécrit le classeur entier à chaque
+     * frappe et bute sur cinq mégaoctets : y ajouter une copie de tout ce
+     * qu'on supprime avancerait la limite, et c'est le classeur vivant qui en
+     * pâtirait. On y perd la restauration, pas les notes — et ce support n'est
+     * de toute façon qu'un repli.
+     */
+    async readTrash() {
+      return []
+    },
+
+    async writeTrash() {},
   }
 }
 

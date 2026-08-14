@@ -115,3 +115,9 @@ export const IconPage = ({ className }: IconProps) => (
     <path d="M13 3v5h5M9 13h6M9 17h4" />
   </svg>
 )
+
+export const IconPrinter = ({ className }: IconProps) => (
+  <svg {...base} className={className}>
+    <path d="M7 9V4h10v5M7 17H5a1 1 0 0 1-1-1v-5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v5a1 1 0 0 1-1 1h-2M7 14h10v6H7z" />
+  </svg>
+)

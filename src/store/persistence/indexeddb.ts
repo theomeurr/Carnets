@@ -1,4 +1,12 @@
-import type { FolioState, Lock, Notebook, Page, Section, Tombstone } from '../../types'
+import type {
+  FolioState,
+  Lock,
+  Notebook,
+  Page,
+  Section,
+  Tombstone,
+  TrashedItem,
+} from '../../types'
 import { assemble } from './assemble'
 import { changes, unchanged } from './diff'
 import { STATE_VERSION, type Driver } from './types'
@@ -7,13 +15,14 @@ import { STATE_VERSION, type Driver } from './types'
 // le renommer ferait pointer l'application sur une base vide, et toutes les
 // notes déjà écrites deviendraient invisibles.
 const DB_NAME = 'carnets'
-const DB_VERSION = 3
+const DB_VERSION = 4
 
 const NOTEBOOKS = 'notebooks'
 const SECTIONS = 'sections'
 const PAGES = 'pages'
 const LOCKS = 'locks'
 const TOMBSTONES = 'tombstones'
+const TRASH = 'trash'
 const META = 'meta'
 const ALL_STORES = [NOTEBOOKS, SECTIONS, PAGES, LOCKS, TOMBSTONES, META]
 
@@ -73,6 +82,19 @@ export async function openIndexedDb(): Promise<Driver> {
 
       await settled(tx)
     },
+
+    readTrash(): Promise<TrashedItem[]> {
+      return readAll<TrashedItem>(db, TRASH)
+    },
+
+    async writeTrash(added: TrashedItem[], removedKeys: string[]): Promise<void> {
+      if (added.length === 0 && removedKeys.length === 0) return
+      const tx = db.transaction(TRASH, 'readwrite')
+      const store = tx.objectStore(TRASH)
+      for (const entry of added) store.put(entry)
+      for (const key of removedKeys) store.delete(key)
+      await settled(tx)
+    },
   }
 }
 
@@ -112,6 +134,9 @@ function open(): Promise<IDBDatabase> {
         if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' })
       }
       if (!db.objectStoreNames.contains(META)) db.createObjectStore(META, { keyPath: 'key' })
+      // La corbeille s'indexe sur « genre:identifiant » : une page et son
+      // verrou portent le même identifiant et s'écraseraient l'un l'autre.
+      if (!db.objectStoreNames.contains(TRASH)) db.createObjectStore(TRASH, { keyPath: 'key' })
     }
 
     request.onsuccess = () => resolve(request.result)

@@ -355,14 +355,51 @@
   display: none;
 }
 
+/* Le pied de la colonne : créer à gauche, la corbeille au bout. */
+.sidebar__foot {
+  display: flex;
+  align-items: stretch;
+  flex: none;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar__trash {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 0 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-mute);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.sidebar__trash:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.sidebar__trash-count {
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--active);
+  color: var(--text-soft);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
 .sidebar__add {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: none;
+  flex: 1;
+  min-width: 0;
   padding: 11px 14px;
   border: none;
-  border-top: 1px solid var(--border);
   background: transparent;
   color: var(--text-soft);
   font-size: 13px;

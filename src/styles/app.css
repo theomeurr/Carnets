@@ -2,5 +2,6 @@
 @import './layout.css';
 @import './editor.css';
 @import './account.css';
+@import './print.css';
 /* En dernier : l'adaptation aux petits écrans corrige ce qui précède. */
 @import './mobile.css';

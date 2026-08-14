@@ -1,3 +1,4 @@
+import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -108,6 +109,11 @@ function PageSurface({
           HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' },
         },
       }),
+      TaskList,
+      // Imbriquées : une tâche peut en contenir d'autres, comme les listes à
+      // puces. Le rendu par défaut place la case dans un `<label>`, ce qui la
+      // rend cochable au doigt sans viser le carré lui-même.
+      TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: 'Commencez à écrire…' }),
     ],
     content: content.html,

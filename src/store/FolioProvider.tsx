@@ -2,12 +2,21 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type Rea
 import { nextColor } from '../lib/colors'
 import { newId } from '../lib/id'
 import { lockOfPage } from '../lib/locks'
-import type { FolioState, Id, Notebook, Page, Section } from '../types'
-import { FolioContext, type FolioApi, type SaveState } from './context'
+import type { EntityKind, FolioState, Id, Notebook, Page, Section, TrashedItem } from '../types'
+import { FolioContext, type FolioApi, type SaveState, type TrashApi } from './context'
 import { describeFailure, openStore, STATE_VERSION, type Driver } from './persistence'
 import { unchanged } from './persistence/diff'
 import { reducer } from './reducer'
 import { seed } from './seed'
+import {
+  doomedBy,
+  expired,
+  restoration,
+  revivalStamp,
+  stamp,
+  subtree,
+  visible,
+} from './trash'
 import { useSync } from '../sync/useSync'
 import { useVault } from './useVault'
 
@@ -32,6 +41,7 @@ const EMPTY: FolioState = {
 export function FolioProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, EMPTY)
   const [ready, setReady] = useState(false)
+  const [trash, setTrash] = useState<TrashedItem[]>([])
   const [save, setSave] = useState<SaveState>({
     status: 'saved',
     at: null,
@@ -55,7 +65,7 @@ export function FolioProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    openStore().then(({ driver: opened, state: stored }) => {
+    openStore().then(async ({ driver: opened, state: stored }) => {
       if (cancelled) return
       driver.current = opened
       // Sans classeur relu, on sème — et `persisted` reste nul, ce qui fera
@@ -64,6 +74,18 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'state/hydrate', state: stored ?? seed() })
       setSave((current) => ({ ...current, driver: opened.kind }))
       setReady(true)
+
+      // La corbeille se vide d'elle-même passé le délai de garde. On le fait à
+      // l'ouverture : c'est le seul moment où l'on est sûr de la relire, et
+      // rien ne presse.
+      const kept = await opened.readTrash().catch(() => [])
+      if (cancelled) return
+      const gone = expired(kept, Date.now())
+      if (gone.length > 0) {
+        void opened.writeTrash([], gone.map((entry) => entry.key)).catch(() => {})
+      }
+      const goneKeys = new Set(gone.map((entry) => entry.key))
+      setTrash(kept.filter((entry) => !goneKeys.has(entry.key)))
     })
     return () => {
       cancelled = true
@@ -188,8 +210,43 @@ export function FolioProvider({ children }: { children: ReactNode }) {
     return true
   }, [])
 
+  // ----- La corbeille -----
+
+  /*
+   * Ce qu'on jette est mis de côté avant de partir. Le calcul se fait ici, sur
+   * l'état d'avant, plutôt que dans le reducer : celui-ci reste pur et ignore
+   * la corbeille, qui est une affaire d'appareil et ne se synchronise pas.
+   */
+  const bin = useCallback((items: TrashedItem[]) => {
+    if (items.length === 0) return
+    setTrash((current) => {
+      const keys = new Set(items.map((entry) => entry.key))
+      return [...current.filter((entry) => !keys.has(entry.key)), ...items]
+    })
+    void driver.current?.writeTrash(items, []).catch(() => {
+      // Sans corbeille, la suppression a tout de même eu lieu : on ne bloque
+      // pas le geste demandé pour un filet de sécurité indisponible.
+    })
+  }, [])
+
+  const discard = useCallback(
+    (kind: EntityKind, id: Id) => {
+      const now = Date.now()
+      bin(stamp(doomedBy(latest.current, kind, id), now))
+      return now
+    },
+    [bin],
+  )
+
+  const forget = useCallback((keys: string[]) => {
+    if (keys.length === 0) return
+    const gone = new Set(keys)
+    setTrash((current) => current.filter((entry) => !gone.has(entry.key)))
+    void driver.current?.writeTrash([], keys).catch(() => {})
+  }, [])
+
   const vault = useVault(latest, dispatch)
-  const sync = useSync(latest, dispatch, ready)
+  const sync = useSync(latest, dispatch, ready, bin)
 
   // Écrire une page passe par le coffre : si elle est sous un verrou ouvert,
   // c'est le chiffré qui part en base, jamais le texte en clair.
@@ -219,27 +276,54 @@ export function FolioProvider({ children }: { children: ReactNode }) {
     [vault],
   )
 
+  const trashApi = useMemo<TrashApi>(
+    () => ({
+      items: visible(trash),
+      unavailable: driver.current?.kind === 'localstorage',
+      restore: (key) => {
+        const entry = trash.find((candidate) => candidate.key === key)
+        if (!entry) return false
+        const items = restoration(latest.current, trash, entry)
+        if (!items) return false
+        dispatch({ type: 'trash/restore', items, now: revivalStamp(items, Date.now()) })
+        forget(items.map((item) => item.key))
+        return true
+      },
+      purge: (key) => {
+        // Une entrée jetée pour de bon emporte ce qu'elle contenait : garder
+        // les pages d'un bloc-notes disparu ne servirait plus à rien.
+        const entry = trash.find((candidate) => candidate.key === key)
+        if (!entry) return
+        forget(subtree(trash, entry).map((item) => item.key))
+      },
+      empty: () => forget(trash.map((entry) => entry.key)),
+    }),
+    [trash, forget],
+  )
+
   const api = useMemo<FolioApi>(
     () => ({
       state,
       save,
       vault,
       sync,
+      trash: trashApi,
       addNotebook,
       renameNotebook: (id, name) =>
         dispatch({ type: 'notebook/rename', id, name, now: Date.now() }),
       recolorNotebook: (id, color) =>
         dispatch({ type: 'notebook/recolor', id, color, now: Date.now() }),
-      removeNotebook: (id) => dispatch({ type: 'notebook/remove', id, now: Date.now() }),
+      removeNotebook: (id) =>
+        dispatch({ type: 'notebook/remove', id, now: discard('notebook', id) }),
       addSection,
       renameSection: (id, name) =>
         dispatch({ type: 'section/rename', id, name, now: Date.now() }),
-      removeSection: (id) => dispatch({ type: 'section/remove', id, now: Date.now() }),
+      removeSection: (id) => dispatch({ type: 'section/remove', id, now: discard('section', id) }),
       addPage,
       claimNewPageFocus,
       renamePage,
       writePage,
-      removePage: (id) => dispatch({ type: 'page/remove', id, now: Date.now() }),
+      removePage: (id) => dispatch({ type: 'page/remove', id, now: discard('page', id) }),
       select: (patch) => dispatch({ type: 'select', patch }),
     }),
     [
@@ -247,6 +331,8 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       save,
       vault,
       sync,
+      trashApi,
+      discard,
       addNotebook,
       addSection,
       addPage,

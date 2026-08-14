@@ -82,6 +82,23 @@ export interface Tombstone {
   deletedAt: number
 }
 
+/**
+ * Ce qu'une suppression a emporté, gardé de côté pour pouvoir le remettre.
+ *
+ * La pierre tombale ci-dessus dit *qu'*une chose a disparu ; elle ne dit pas
+ * *ce qu'*elle contenait. La corbeille garde l'objet lui-même, et elle reste
+ * sur l'appareil : elle ne part pas au serveur, et n'est donc jamais chiffrée
+ * autrement que la page ne l'était déjà.
+ */
+export interface TrashedItem {
+  /** `kind:id`, comme les pierres tombales — une page et son verrou partagent l'identifiant. */
+  key: string
+  kind: EntityKind
+  id: Id
+  deletedAt: number
+  entity: Notebook | Section | Page | Lock
+}
+
 /** Ce qui est ouvert à l'écran, une entrée par colonne. */
 export interface Selection {
   notebookId: Id | null

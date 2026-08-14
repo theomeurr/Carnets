@@ -18,6 +18,7 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
       code: instance.isActive('code'),
       bulletList: instance.isActive('bulletList'),
       orderedList: instance.isActive('orderedList'),
+      taskList: instance.isActive('taskList'),
       blockquote: instance.isActive('blockquote'),
       codeBlock: instance.isActive('codeBlock'),
       link: instance.isActive('link'),
@@ -109,6 +110,13 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
       >
         <Glyph d="M10 6h10M10 12h10M10 18h10M4 5h1v4M4 9h2M4 15h2v2H4v2h2" />
+      </Tool>
+      <Tool
+        label="Liste de tâches"
+        active={marks.taskList}
+        onClick={() => editor.chain().focus().toggleTaskList().run()}
+      >
+        <Glyph d="M11 6h9M11 12h9M11 18h9M3 6l1.5 1.5L7.5 4.5M3 12l1.5 1.5L7.5 10.5M3 18l1.5 1.5L7.5 16.5" />
       </Tool>
       <Tool
         label="Citation"
