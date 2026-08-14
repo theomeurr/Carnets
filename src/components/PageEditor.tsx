@@ -13,7 +13,7 @@ import { IconPage, IconPlus } from './Icons'
 import { SealedPanel } from './SealedPanel'
 
 /** Attente d'inactivité avant de renvoyer le contenu au magasin. */
-const WRITE_DELAY_MS = 300
+const WRITE_DELAY_MS = 150
 
 /**
  * Colonne de droite. La surface d'édition est montée avec la page pour clé :

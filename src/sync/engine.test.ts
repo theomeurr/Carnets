@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FolioState, Page } from '../types'
-import { NEW_DEVICE, syncOnce, type Cursors } from './engine'
+import { NEW_DEVICE, pushOnce, syncOnce, type Cursors } from './engine'
 import { fakeRemote } from './fake'
 
 const page = (id: string, title: string, updatedAt: number): Page => ({
@@ -246,5 +246,42 @@ describe('notification en temps réel', () => {
     stop?.()
     await syncOnce(remote, classeur([page('p2', 'Encore', 400)]), NEW_DEVICE, 500)
     expect(sonneries).toBe(1)
+  })
+})
+
+describe('voie rapide : envoyer sans lire', () => {
+  it('transmet la frappe sans aller-retour de lecture', async () => {
+    const remote = fakeRemote()
+    let lectures = 0
+    const vraiPull = remote.pull.bind(remote)
+    remote.pull = async (since: number) => {
+      lectures += 1
+      return vraiPull(since)
+    }
+
+    const out = await pushOnce(remote, classeur([page('p1', 'Frappe', 100)]), NEW_DEVICE, 200)
+    expect(out.sent).toBe(true)
+    expect(lectures).toBe(0)
+    expect((await vraiPull(0)).pages.map((p) => p.title)).toEqual(['Frappe'])
+  })
+
+  it('ne fait pas avancer le repère de lecture', async () => {
+    const remote = fakeRemote()
+    // Un autre appareil a écrit quelque chose qu'on n'a pas encore lu.
+    await syncOnce(remote, classeur([page('pX', 'Venue d’ailleurs', 900)]), NEW_DEVICE, 950)
+
+    const out = await pushOnce(remote, classeur([page('p1', 'La mienne', 100)]), NEW_DEVICE, 200)
+    expect(out.cursors.pulled).toBe(0)
+
+    // Le tour complet suivant la reçoit donc bien.
+    const suite = await syncOnce(remote, classeur([]), out.cursors, 300)
+    expect(suite.state.pages.map((p) => p.title)).toContain('Venue d’ailleurs')
+  })
+
+  it('ne parle pas quand il n’y a rien à envoyer', async () => {
+    const remote = fakeRemote()
+    const out = await pushOnce(remote, classeur([page('p1', 'Vieille', 10)]), { pulled: 0, pushed: 5000 }, 5100)
+    expect(out.sent).toBe(false)
+    expect(remote.pushes).toBe(0)
   })
 })

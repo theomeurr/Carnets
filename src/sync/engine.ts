@@ -74,6 +74,35 @@ export async function syncOnce(
   return { state: merged, cursors: { pulled, pushed: now }, received, sent }
 }
 
+/**
+ * Envoyer sans lire d'abord — la voie rapide, pour ce que l'on vient d'écrire
+ * soi-même.
+ *
+ * `syncOnce` tire avant de pousser, ce qui coûte un aller-retour complet avant
+ * que la moindre lettre ne parte. Cet ordre protège d'une chose précise : un
+ * envoi qui échoue à mi-chemin sans qu'on ait intégré ce que les autres
+ * disaient. Or les deux repères étant indépendants, pousser seul ne peut rien
+ * corrompre : le repère de lecture ne bouge pas, et le tour suivant lira
+ * normalement.
+ *
+ * On garde donc la lecture pour ce qui l'exige — la sonnette, le retour dans
+ * l'onglet, la vérification périodique — et on s'en dispense quand il n'y a
+ * qu'à transmettre sa propre frappe.
+ */
+export async function pushOnce(
+  remote: Remote,
+  state: FolioState,
+  cursors: Cursors,
+  now = Date.now(),
+): Promise<SyncOutcome> {
+  const outgoing = localChanges(state, Math.max(0, cursors.pushed - PUSH_OVERLAP_MS))
+  const sent = !isEmpty(outgoing)
+  if (!sent) return { state, cursors, received: false, sent: false }
+
+  await remote.push(outgoing)
+  return { state, cursors: { ...cursors, pushed: now }, received: false, sent: true }
+}
+
 /** La date la plus récente d'un lot reçu, ou 0 s'il est vide. */
 function latestStamp(changes: Changeset): number {
   let latest = 0

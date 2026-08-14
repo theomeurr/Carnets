@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from
 import type { Action } from '../store/reducer'
 import type { FolioState } from '../types'
 import { syncConfig } from './config'
-import { NEW_DEVICE, syncOnce, type Cursors } from './engine'
+import { NEW_DEVICE, pushOnce, syncOnce, type Cursors } from './engine'
 import { readableAuthError, type Account, type Remote } from './remote'
 import { supabaseRemote } from './supabase'
 
@@ -36,10 +36,13 @@ export interface SyncApi {
  * bloque les connexions persistantes, par exemple.
  */
 const PERIOD_MS = 12_000
-/** Attente après une frappe avant d'envoyer, pour ne pas parler à chaque mot. */
-const DEBOUNCE_MS = 1_200
+/**
+ * Attente après une frappe avant d'envoyer. Assez pour regrouper une rafale de
+ * touches, assez peu pour que l'autre appareil ne sente pas l'attente.
+ */
+const DEBOUNCE_MS = 300
 /** Regroupe les sonnettes rapprochées : un lot d'écritures ne fait qu'un tour. */
-const BELL_MS = 250
+const BELL_MS = 60
 
 /** Les repères sont propres à chaque compte : en changer ne doit rien mélanger. */
 const cursorKey = (accountId: string) => `folio:sync-cursor:${accountId}`
@@ -108,14 +111,19 @@ export function useSync(
 
   // ----- Un tour -----
 
-  const run = useCallback(async () => {
+  const run = useCallback(
+    async (mode: 'full' | 'push' = 'full') => {
     const current = accountRef.current
     if (!remote || !current || running.current || !navigator.onLine) return
 
     running.current = true
     setStatus('syncing')
     try {
-      const outcome = await syncOnce(remote, latest.current, readCursors(current.id))
+      const cursors = readCursors(current.id)
+      const outcome =
+        mode === 'push'
+          ? await pushOnce(remote, latest.current, cursors)
+          : await syncOnce(remote, latest.current, cursors)
       // Ce qui arrive du serveur repasse par le reducer, donc par `settle` :
       // la page ouverte a pu être supprimée ailleurs.
       if (outcome.received) dispatch({ type: 'state/hydrate', state: outcome.state })
@@ -130,7 +138,9 @@ export function useSync(
     } finally {
       running.current = false
     }
-  }, [remote, latest, dispatch])
+    },
+    [remote, latest, dispatch],
+  )
 
   const syncNow = useCallback(() => {
     if (timer.current) clearTimeout(timer.current)
@@ -180,7 +190,8 @@ export function useSync(
   useEffect(() => {
     if (!account || !ready) return
     if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => void run(), DEBOUNCE_MS)
+    // Voie rapide : ce qu'on vient d'écrire part sans attendre une lecture.
+    timer.current = setTimeout(() => void run('push'), DEBOUNCE_MS)
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
