@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AccountDialog } from './components/AccountDialog'
+import { MobilePaneProvider } from './components/MobilePane'
+import { useMobilePane } from './components/paneContext'
 import { PageEditor } from './components/PageEditor'
 import { PageList } from './components/PageList'
 import { SaveBanner } from './components/SaveBanner'
@@ -12,7 +14,9 @@ import { FolioProvider } from './store/FolioProvider'
 export default function App() {
   return (
     <FolioProvider>
-      <Workspace />
+      <MobilePaneProvider>
+        <Workspace />
+      </MobilePaneProvider>
     </FolioProvider>
   )
 }
@@ -20,6 +24,7 @@ export default function App() {
 function Workspace() {
   const [searching, setSearching] = useState(false)
   const [account, setAccount] = useState(false)
+  const { pane } = useMobilePane()
 
   // Ctrl/⌘ + K ouvre la recherche depuis n'importe où, y compris en pleine
   // frappe dans l'éditeur.
@@ -38,7 +43,7 @@ function Workspace() {
     <div className="app">
       <TopBar onSearch={() => setSearching(true)} onAccount={() => setAccount(true)} />
       <SaveBanner />
-      <main className="columns">
+      <main className={`columns is-${pane}`}>
         <Sidebar />
         <PageList />
         <PageEditor />

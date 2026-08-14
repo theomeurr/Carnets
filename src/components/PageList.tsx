@@ -4,6 +4,7 @@ import { displayTitle, formatDate } from '../lib/text'
 import { useFolio, useCurrentView } from '../store/useFolio'
 import type { Id } from '../types'
 import { IconLock, IconPlus } from './Icons'
+import { useMobilePane } from './paneContext'
 import { InlineRename } from './InlineRename'
 import { ConfirmDialog } from './Modal'
 import { RowMenu } from './RowMenu'
@@ -14,6 +15,7 @@ export function PageList() {
   const folio = useFolio()
   const { select, addPage, vault } = folio
   const { controlsFor, dialogs } = useLockMenu()
+  const { show } = useMobilePane()
   const { notebook, section, page: activePage, pages } = useCurrentView()
 
   const [renaming, setRenaming] = useState<Id | null>(null)
@@ -37,7 +39,10 @@ export function PageList() {
             className="icon-button"
             title="Nouvelle page"
             aria-label="Nouvelle page"
-            onClick={() => addPage(section.id)}
+            onClick={() => {
+              addPage(section.id)
+              show('editor')
+            }}
           >
             <IconPlus />
           </button>
@@ -52,7 +57,10 @@ export function PageList() {
         ) : pages.length === 0 ? (
           <div className="empty-block">
             <p className="empty-hint">Cette section est vide.</p>
-            <button type="button" className="ghost-button" onClick={() => addPage(section.id)}>
+            <button type="button" className="ghost-button" onClick={() => {
+              addPage(section.id)
+              show('editor')
+            }}>
               <IconPlus />
               Nouvelle page
             </button>
@@ -72,12 +80,16 @@ export function PageList() {
                   role="button"
                   tabIndex={0}
                   aria-current={page.id === activePage?.id ? 'true' : undefined}
-                  onClick={() => select({ pageId: page.id })}
+                  onClick={() => {
+                    select({ pageId: page.id })
+                    show('editor')
+                  }}
                   onDoubleClick={() => setRenaming(page.id)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault()
                       select({ pageId: page.id })
+                      show('editor')
                     }
                   }}
                 >

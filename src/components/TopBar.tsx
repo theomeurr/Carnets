@@ -1,15 +1,29 @@
 import { useFolio } from '../store/useFolio'
-import { IconCloud as IconSync } from './Icons'
+import { IconChevron, IconCloud as IconSync } from './Icons'
+import { useMobilePane } from './paneContext'
 import { IconAlert, IconCheck, IconCloud, IconLock, IconSearch } from './Icons'
 
 /** Bandeau supérieur : identité, entrée de la recherche, état de l'enregistrement. */
 export function TopBar({ onSearch, onAccount }: { onSearch: () => void; onAccount: () => void }) {
   const { state, save, vault, sync } = useFolio()
+  const { pane, back } = useMobilePane()
   const pages = state.pages.length
   const openCount = vault.openLocks.size
 
   return (
     <header className="topbar">
+      {/* Le retour ne s'affiche que sur petit écran, où une seule colonne
+          est visible à la fois ; le CSS le masque au-delà. */}
+      <button
+        type="button"
+        className="topbar__back"
+        aria-label="Revenir en arrière"
+        disabled={pane === 'browse'}
+        onClick={back}
+      >
+        <IconChevron />
+      </button>
+
       <div className="topbar__brand">
         <span className="topbar__mark" aria-hidden="true" />
         <span className="topbar__name">Folio</span>

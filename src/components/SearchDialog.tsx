@@ -4,6 +4,7 @@ import { highlight, search, type SearchHit } from '../lib/search'
 import { displayTitle, formatDate } from '../lib/text'
 import { useFolio } from '../store/useFolio'
 import { IconSearch } from './Icons'
+import { useMobilePane } from './paneContext'
 
 /**
  * Recherche globale : elle parcourt les titres et le contenu de toutes les
@@ -12,6 +13,7 @@ import { IconSearch } from './Icons'
  */
 export function SearchDialog({ onClose }: { onClose: () => void }) {
   const { state, select, vault } = useFolio()
+  const { show } = useMobilePane()
   const [query, setQuery] = useState('')
   const [cursor, setCursor] = useState(0)
   const listRef = useRef<HTMLUListElement>(null)
@@ -44,6 +46,10 @@ export function SearchDialog({ onClose }: { onClose: () => void }) {
       sectionId: hit.page.sectionId,
       pageId: hit.page.id,
     })
+    // Sur téléphone, une seule colonne est montrée : ouvrir un résultat sans
+    // basculer sur l'éditeur laissait l'utilisateur devant la liste des
+    // bloc-notes, la page bien sélectionnée mais invisible.
+    show('editor')
     onClose()
   }
 

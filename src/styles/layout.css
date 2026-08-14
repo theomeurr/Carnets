@@ -616,37 +616,6 @@
   }
 }
 
-@media (max-width: 820px) {
-  .app {
-    height: auto;
-    min-height: 100dvh;
-    overflow: visible;
-  }
-
-  .columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .sidebar,
-  .pages {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .sidebar__scroll,
-  .pages__scroll {
-    max-height: 42vh;
-  }
-
-  .editor__scroll {
-    overflow: visible;
-  }
-
-  .topbar__search-label {
-    display: none;
-  }
-}
-
 /* ---------- Verrous dans les colonnes ---------- */
 
 .notebook-row__icon.is-locked,
@@ -763,4 +732,30 @@
 
 .topbar__account ~ .topbar__relock {
   margin-left: 8px;
+}
+
+/* Le retour n'existe que sur petit écran. */
+.topbar__back {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-soft);
+  cursor: pointer;
+  transform: rotate(180deg);
+}
+
+.topbar__back:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.topbar__back:not(:disabled):hover {
+  background: var(--hover);
+  color: var(--text);
 }

@@ -3,6 +3,7 @@ import { colorOf } from '../lib/colors'
 import { useFolio, useCurrentView, usePageCounts } from '../store/useFolio'
 import type { Id } from '../types'
 import { IconLock, IconNotebook, IconPlus } from './Icons'
+import { useMobilePane } from './paneContext'
 import { InlineRename } from './InlineRename'
 import { ConfirmDialog } from './Modal'
 import { RowMenu } from './RowMenu'
@@ -23,6 +24,7 @@ export function Sidebar() {
   const pageCounts = usePageCounts()
 
   const { controlsFor, dialogs } = useLockMenu()
+  const { show } = useMobilePane()
 
   const [renaming, setRenaming] = useState<Id | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
@@ -130,12 +132,16 @@ export function Sidebar() {
                             role="button"
                             tabIndex={0}
                             aria-current={section.id === activeSection?.id ? 'true' : undefined}
-                            onClick={() => select({ sectionId: section.id })}
+                            onClick={() => {
+                              select({ sectionId: section.id })
+                              show('pages')
+                            }}
                             onDoubleClick={() => setRenaming(section.id)}
                             onKeyDown={(event) => {
                               if (event.key === 'Enter' || event.key === ' ') {
                                 event.preventDefault()
                                 select({ sectionId: section.id })
+                                show('pages')
                               }
                             }}
                           >
@@ -182,7 +188,10 @@ export function Sidebar() {
                     <button
                       type="button"
                       className="ghost-button"
-                      onClick={() => setRenaming(addSection(notebook.id).id)}
+                      onClick={() => {
+                        setRenaming(addSection(notebook.id).id)
+                        show('pages')
+                      }}
                     >
                       <IconPlus />
                       Nouvelle section

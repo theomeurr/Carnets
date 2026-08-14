@@ -151,12 +151,21 @@ function PageSurface({
   }, [claimNewPageFocus, page.id])
 
   // Le titre est un `textarea` qui grandit avec son contenu, pour ne jamais
-  // tronquer une longue formulation.
+  // tronquer une longue formulation. On le remesure au fil de la frappe, mais
+  // aussi dès que l'élément change de taille : sur téléphone il est monté
+  // dans un panneau masqué, où toute mesure vaut zéro, et il serait resté
+  // haut de zéro pixel en devenant visible.
   useEffect(() => {
     const element = titleRef.current
     if (!element) return
-    element.style.height = 'auto'
-    element.style.height = `${element.scrollHeight}px`
+    const fit = () => {
+      element.style.height = 'auto'
+      element.style.height = `${element.scrollHeight}px`
+    }
+    fit()
+    const observer = new ResizeObserver(fit)
+    observer.observe(element)
+    return () => observer.disconnect()
   }, [content.title])
 
   return (

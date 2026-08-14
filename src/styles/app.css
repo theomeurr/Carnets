@@ -1,3 +1,5 @@
 @import './base.css';
 @import './layout.css';
 @import './editor.css';
+/* En dernier : l'adaptation aux petits écrans corrige ce qui précède. */
+@import './mobile.css';
