@@ -133,13 +133,68 @@
   .row-menu__item {
     min-height: 40px;
   }
+
+  /*
+   * Deux réflexes du navigateur qui donnent l'impression que l'application
+   * traîne. Le premier est le rectangle gris que Safari peint sur tout ce
+   * qu'on touche ; le second est l'attente qu'il s'impose avant de valider
+   * une touche, au cas où un second doigt viendrait agrandir la page.
+   * `manipulation` renonce à ce double appui : le geste part tout de suite.
+   * Il n'est pas posé sur le corps de la note, où le double appui sert à
+   * choisir un mot.
+   */
+  button,
+  select,
+  a,
+  .page-card,
+  .notebook-row,
+  .section-row {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
 }
 
-/* Sous 16 px, iOS agrandit la page à la mise au point d'un champ. */
+/*
+ * iOS agrandit la page dès que le curseur entre dans un champ écrit en moins
+ * de 16 px — et il laisse la vue agrandie et décalée après coup : le contenu
+ * n'est plus aligné sur les bords, et il faut faire glisser la page pour
+ * rattraper ce qui dépasse. Comme le corps de la note était à 15,5 px, cela
+ * se déclenchait au geste le plus courant de l'application : toucher la page
+ * pour écrire.
+ *
+ * Tout ce qui peut recevoir le curseur passe donc à 16 px. La liste est
+ * explicite parce que ces éléments portent des règles de classe, qui
+ * l'emporteraient sur un simple `input, textarea, select`.
+ */
 @media (max-width: 820px) {
+  input,
+  textarea,
+  select,
   .field__input,
   .search__input,
-  .inline-rename {
+  .inline-rename,
+  .toolbar__select,
+  .prose {
     font-size: 16px;
+  }
+}
+
+/*
+ * L'élan d'un défilement ne doit pas passer à la page entière : sans cela,
+ * arriver au bout d'une liste fait rebondir toute l'application, ce qui se
+ * ressent comme un accroc.
+ */
+@media (max-width: 820px) {
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
+  .sidebar__scroll,
+  .pages__scroll,
+  .editor__scroll,
+  .search__results {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
