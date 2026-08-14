@@ -110,6 +110,29 @@ begin
   end loop;
 end $$;
 
+-- ------------------------------------------------- temps réel
+
+-- Sans ceci, un appareil ne découvre les modifications qu'à sa vérification
+-- suivante — jusqu'à une dizaine de secondes d'attente. Avec, il est prévenu
+-- dès l'écriture et va chercher les données aussitôt.
+--
+-- Ce qui est diffusé n'est qu'un signal : l'application déclenche un tour de
+-- synchronisation ordinaire, elle ne lit pas la charge utile. La sécurité par
+-- ligne s'applique aussi ici — personne n'est prévenu des écritures d'autrui.
+do $$
+declare t text;
+begin
+  foreach t in array array['notebooks', 'sections', 'pages', 'locks', 'tombstones'] loop
+    -- Idempotent : rejouer le script entier ne doit pas échouer.
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
+
 -- ------------------------------------------------- purge des traces
 
 -- Les traces de suppression ne servent plus une fois que tous les appareils

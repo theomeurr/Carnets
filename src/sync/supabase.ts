@@ -65,6 +65,17 @@ export function supabaseRemote(config: SyncConfig): Remote {
       await client.auth.signOut()
     },
 
+    onRemoteChange(listener) {
+      // Un seul canal pour les cinq tables : on ne veut qu'un signal, pas le
+      // détail de ce qui a bougé.
+      const channel = client.channel('folio-changes')
+      for (const table of ['notebooks', 'sections', 'pages', 'locks', 'tombstones']) {
+        channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => listener())
+      }
+      void channel.subscribe()
+      return () => void client.removeChannel(channel)
+    },
+
     async pull(since: number): Promise<Changeset> {
       const [notebooks, sections, pages, locks, tombstones] = await Promise.all([
         rows(client, 'notebooks', 'updated_at', since),

@@ -22,6 +22,16 @@ export interface Remote {
   signIn(email: string, password: string): Promise<Account>
   signOut(): Promise<void>
 
+  /**
+   * Prévient qu'un autre appareil a écrit quelque chose. C'est une simple
+   * sonnette : elle ne transporte pas les données, elle déclenche un tour de
+   * synchronisation ordinaire. La fusion garde ainsi un chemin unique, au lieu
+   * d'un second par lequel les défauts pourraient se glisser.
+   *
+   * Facultatif : sans elle, on retombe sur la vérification périodique.
+   */
+  onRemoteChange?(listener: () => void): () => void
+
   /** Tout ce qui a changé côté serveur depuis `since` (millisecondes). */
   pull(since: number): Promise<Changeset>
   /** Envoie les modifications locales. */

@@ -227,3 +227,24 @@ describe('horloges désaccordées', () => {
     expect(pc.state.pages).toEqual([])
   })
 })
+
+describe('notification en temps réel', () => {
+  it('prévient les autres appareils dès qu’un envoi a lieu', async () => {
+    const remote = fakeRemote()
+    let sonneries = 0
+    const stop = remote.onRemoteChange?.(() => {
+      sonneries += 1
+    })
+
+    await syncOnce(remote, classeur([page('p1', 'Nouvelle', 100)]), NEW_DEVICE, 200)
+    expect(sonneries).toBe(1)
+
+    // Un tour sans rien à envoyer ne réveille personne.
+    await syncOnce(remote, classeur([]), { pulled: 999_999, pushed: 999_999 }, 300)
+    expect(sonneries).toBe(1)
+
+    stop?.()
+    await syncOnce(remote, classeur([page('p2', 'Encore', 400)]), NEW_DEVICE, 500)
+    expect(sonneries).toBe(1)
+  })
+})

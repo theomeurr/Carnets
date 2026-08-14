@@ -29,10 +29,17 @@ export interface SyncApi {
   syncNow: () => void
 }
 
-/** Intervalle entre deux tours, quand rien ne les provoque. */
-const PERIOD_MS = 20_000
+/**
+ * Filet de sécurité, quand rien ne provoque de tour : la notification en
+ * temps réel fait normalement le travail bien avant. Assez court pour que le
+ * retard reste supportable si elle est indisponible — réseau d'entreprise qui
+ * bloque les connexions persistantes, par exemple.
+ */
+const PERIOD_MS = 12_000
 /** Attente après une frappe avant d'envoyer, pour ne pas parler à chaque mot. */
-const DEBOUNCE_MS = 3_000
+const DEBOUNCE_MS = 1_200
+/** Regroupe les sonnettes rapprochées : un lot d'écritures ne fait qu'un tour. */
+const BELL_MS = 250
 
 /** Les repères sont propres à chaque compte : en changer ne doit rien mélanger. */
 const cursorKey = (accountId: string) => `folio:sync-cursor:${accountId}`
@@ -144,14 +151,29 @@ export function useSync(
     const onVisible = () => {
       if (document.visibilityState === 'visible') void run()
     }
+    // `focus` en plus de `visibilitychange` : deux fenêtres côte à côte sont
+    // toutes deux « visibles », et passer de l'une à l'autre ne déclencherait
+    // rien sans lui.
     window.addEventListener('online', onOnline)
+    window.addEventListener('focus', onOnline)
     document.addEventListener('visibilitychange', onVisible)
+
+    // La sonnette : un autre appareil a écrit, on va voir tout de suite.
+    let bell: ReturnType<typeof setTimeout> | null = null
+    const unsubscribe = remote?.onRemoteChange?.(() => {
+      if (bell) clearTimeout(bell)
+      bell = setTimeout(() => void run(), BELL_MS)
+    })
+
     return () => {
       clearInterval(interval)
+      if (bell) clearTimeout(bell)
+      unsubscribe?.()
       window.removeEventListener('online', onOnline)
+      window.removeEventListener('focus', onOnline)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [account, run])
+  }, [account, run, remote])
 
   // Une modification locale déclenche un envoi, une fois la main arrêtée.
   const { notebooks, sections, pages, locks, tombstones } = latest.current

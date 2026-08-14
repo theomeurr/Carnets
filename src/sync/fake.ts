@@ -24,6 +24,7 @@ export function fakeRemote(): Remote & {
   }
   let account: Account | null = null
   const listeners = new Set<(account: Account | null) => void>()
+  const bells = new Set<() => void>()
 
   const remote = {
     offline: false,
@@ -56,6 +57,11 @@ export function fakeRemote(): Remote & {
       listeners.forEach((l) => l(null))
     },
 
+    onRemoteChange(listener: () => void) {
+      bells.add(listener)
+      return () => bells.delete(listener)
+    },
+
     async pull(since: number): Promise<Changeset> {
       if (remote.offline) throw new Error('Serveur injoignable')
       const after = <T extends { updatedAt: number }>(m: Map<string, T>): T[] =>
@@ -79,6 +85,9 @@ export function fakeRemote(): Remote & {
       // Comme en base : le genre fait partie de la clé, une page et son verrou
       // partageant le même identifiant.
       for (const t of changes.tombstones) store.tombstones.set(`${t.kind}:${t.id}`, { ...t })
+      // Comme le vrai serveur : quelque chose a été écrit, les autres appareils
+      // sont prévenus.
+      bells.forEach((ring) => ring())
     },
   }
 
