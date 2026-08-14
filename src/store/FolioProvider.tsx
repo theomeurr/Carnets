@@ -8,6 +8,7 @@ import { describeFailure, openStore, STATE_VERSION, type Driver } from './persis
 import { unchanged } from './persistence/diff'
 import { reducer } from './reducer'
 import { seed } from './seed'
+import { useSync } from '../sync/useSync'
 import { useVault } from './useVault'
 
 /** Délai d'inactivité avant écriture — assez court pour être invisible. */
@@ -188,6 +189,7 @@ export function FolioProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const vault = useVault(latest, dispatch)
+  const sync = useSync(latest, dispatch, ready)
 
   // Écrire une page passe par le coffre : si elle est sous un verrou ouvert,
   // c'est le chiffré qui part en base, jamais le texte en clair.
@@ -222,6 +224,7 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       state,
       save,
       vault,
+      sync,
       addNotebook,
       renameNotebook: (id, name) =>
         dispatch({ type: 'notebook/rename', id, name, now: Date.now() }),
@@ -239,7 +242,18 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       removePage: (id) => dispatch({ type: 'page/remove', id, now: Date.now() }),
       select: (patch) => dispatch({ type: 'select', patch }),
     }),
-    [state, save, vault, addNotebook, addSection, addPage, claimNewPageFocus, renamePage, writePage],
+    [
+      state,
+      save,
+      vault,
+      sync,
+      addNotebook,
+      addSection,
+      addPage,
+      claimNewPageFocus,
+      renamePage,
+      writePage,
+    ],
   )
 
   // Tant que le classeur n'est pas relu, l'interface n'a rien de sensé à

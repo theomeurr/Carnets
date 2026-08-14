@@ -716,3 +716,51 @@
 .topbar__relock + .save-badge {
   margin-left: 12px;
 }
+
+/* ---------- Compte et synchronisation ---------- */
+
+.topbar__account {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 28px;
+  margin-left: auto;
+  padding: 0 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-soft);
+  font-size: 12.5px;
+  max-width: 190px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.topbar__account:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.topbar__account.is-syncing {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-strong));
+}
+
+.topbar__account.is-error {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border-strong));
+}
+
+/* Quand le bouton de compte est là, c'est lui qui pousse la suite à droite. */
+.topbar__account ~ .topbar__relock,
+.topbar__account ~ .save-badge {
+  margin-left: 12px;
+}
+
+.topbar__account ~ .topbar__relock {
+  margin-left: 8px;
+}

@@ -24,7 +24,7 @@ export default defineConfig({
         name: 'Folio — prise de notes',
         short_name: 'Folio',
         description:
-          'Prise de notes en bloc-notes, sections et pages. Fonctionne hors ligne, tout reste sur votre appareil.',
+          'Prise de notes en bloc-notes, sections et pages. Fonctionne hors ligne ; sans compte, tout reste sur votre appareil.',
         lang: 'fr',
         dir: 'ltr',
         // Relatifs, comme le reste : l'application s'installe depuis n'importe

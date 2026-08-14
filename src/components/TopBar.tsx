@@ -1,9 +1,10 @@
 import { useFolio } from '../store/useFolio'
+import { IconCloud as IconSync } from './Icons'
 import { IconAlert, IconCheck, IconCloud, IconLock, IconSearch } from './Icons'
 
 /** Bandeau supérieur : identité, entrée de la recherche, état de l'enregistrement. */
-export function TopBar({ onSearch }: { onSearch: () => void }) {
-  const { state, save, vault } = useFolio()
+export function TopBar({ onSearch, onAccount }: { onSearch: () => void; onAccount: () => void }) {
+  const { state, save, vault, sync } = useFolio()
   const pages = state.pages.length
   const openCount = vault.openLocks.size
 
@@ -35,6 +36,18 @@ export function TopBar({ onSearch }: { onSearch: () => void }) {
         </button>
       )}
 
+      {sync.available && (
+        <button
+          type="button"
+          className={`topbar__account is-${sync.status}`}
+          onClick={onAccount}
+          title={accountTitle(sync)}
+        >
+          <IconSync />
+          {sync.account ? sync.account.email.split('@')[0] : 'Se connecter'}
+        </button>
+      )}
+
       <p className={`save-badge is-${save.status}`} aria-live="polite" title={tooltip(save)}>
         {save.status === 'saving' ? (
           <IconCloud />
@@ -47,6 +60,15 @@ export function TopBar({ onSearch }: { onSearch: () => void }) {
       </p>
     </header>
   )
+}
+
+function accountTitle(sync: ReturnType<typeof useFolio>['sync']): string {
+  if (!sync.account) return 'Se connecter pour retrouver ses notes sur ses autres appareils'
+  if (sync.status === 'syncing') return 'Synchronisation en cours…'
+  if (sync.status === 'error') return sync.reason ?? 'Le dernier échange a échoué'
+  return sync.lastSyncAt
+    ? `À jour — dernier échange à ${new Date(sync.lastSyncAt).toLocaleTimeString('fr-FR')}`
+    : 'Connecté'
 }
 
 function label(status: 'saved' | 'saving' | 'error'): string {

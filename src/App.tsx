@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AccountDialog } from './components/AccountDialog'
 import { PageEditor } from './components/PageEditor'
 import { PageList } from './components/PageList'
 import { SaveBanner } from './components/SaveBanner'
@@ -18,6 +19,7 @@ export default function App() {
 
 function Workspace() {
   const [searching, setSearching] = useState(false)
+  const [account, setAccount] = useState(false)
 
   // Ctrl/⌘ + K ouvre la recherche depuis n'importe où, y compris en pleine
   // frappe dans l'éditeur.
@@ -34,7 +36,7 @@ function Workspace() {
 
   return (
     <div className="app">
-      <TopBar onSearch={() => setSearching(true)} />
+      <TopBar onSearch={() => setSearching(true)} onAccount={() => setAccount(true)} />
       <SaveBanner />
       <main className="columns">
         <Sidebar />
@@ -42,6 +44,7 @@ function Workspace() {
         <PageEditor />
       </main>
       {searching && <SearchDialog onClose={() => setSearching(false)} />}
+      {account && <AccountDialog onClose={() => setAccount(false)} />}
       <UpdatePrompt />
     </div>
   )

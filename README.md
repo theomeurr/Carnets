@@ -20,6 +20,8 @@ niveaux : **bloc-notes → sections → pages**.
   contenu est réellement chiffré, titre compris.
 - **S'installer comme une application** et fonctionner **entièrement hors
   ligne**, y compris au tout premier lancement après installation.
+- **Se synchroniser entre appareils** avec un compte, en option : sans compte,
+  rien ne quitte l'appareil et l'application est identique.
 
 L'interface tient en trois colonnes : les bloc-notes et leurs sections à
 gauche, les pages de la section ouverte au milieu, la page à droite.
@@ -58,6 +60,13 @@ src/
       diff.ts            ce qui a changé depuis la dernière écriture
       assemble.ts        validation et remise en ordre à la relecture
       index.ts           ouverture, choix du support, reprise
+  sync/
+    merge.ts             fusion de deux appareils, le plus récent gagne
+    engine.ts            un tour : tirer, fusionner, pousser
+    remote.ts            le contrat du serveur — permet de tester sans réseau
+    supabase.ts          l'adaptateur réel
+    fake.ts              un serveur en mémoire, pour les tests
+    useSync.ts           la boucle, le compte, l'état affiché
   lib/
     search.ts            recherche globale, classement et extraits
     persist-storage.ts   demande de stockage non évinçable
@@ -130,6 +139,17 @@ déjà protégée est refusé, avec l'explication. Sans cette règle, atteindre 
 note pourrait demander deux mots de passe successifs, et le code devrait gérer
 des clés en cascade.
 
+**La synchronisation ne fait jamais autorité.** IndexedDB reste la source de
+vérité ; un tour de synchronisation apporte ce que les autres appareils ont
+écrit, puis propose ce qu'on a écrit soi-même. Sans compte ou sans réseau,
+l'application est rigoureusement identique.
+
+On tire avant de pousser, et le curseur n'avance qu'en cas de succès complet :
+un envoi interrompu laisse les modifications repartir au tour suivant. La
+logique ne connaît que l'interface `Remote`, ce qui permet de l'éprouver
+contre un serveur en mémoire — deux appareils, coupures, conflits — sans
+réseau ni compte.
+
 **L'ordre est celui de la création.** Un magasin clé-valeur rend ses entrées
 triées par identifiant : `assemble.ts` rétablit l'ordre à la relecture à partir
 de `createdAt`. Le jour où le glisser-déposer arrivera, il faudra un champ
@@ -189,9 +209,9 @@ Deux points à connaître avant de mettre en ligne :
 - **HTTPS est obligatoire** — pour le verrouillage des notes (`crypto.subtle`
   n'existe que dans un contexte sécurisé) comme pour le service worker, sans
   lequel il n'y a ni installation ni hors ligne. `localhost` fait exception.
-- **Les notes ne quittent jamais l'appareil.** Elles vivent dans IndexedDB, par
-  origine : chaque visiteur a les siennes, et déployer ne partage aucune
-  donnée. Il n'y a ni compte, ni synchronisation, ni serveur à administrer.
+- **Sans compte, les notes ne quittent jamais l'appareil.** Elles vivent dans
+  IndexedDB, par origine. Avec un compte, elles transitent par Supabase — les
+  notes verrouillées y arrivant chiffrées, illisibles du serveur.
 
 ## Vérifier avant de pousser
 

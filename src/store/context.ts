@@ -2,6 +2,7 @@ import { createContext } from 'react'
 import type { FolioState, Id, Notebook, Page, Section, Selection } from '../types'
 
 import type { DriverKind } from './persistence'
+import type { SyncApi } from '../sync/useSync'
 import type { Vault } from './useVault'
 
 export type SaveStatus = 'saved' | 'saving' | 'error'
@@ -28,6 +29,8 @@ export interface FolioApi {
   save: SaveState
   /** Les verrous, les clés de la session, et le contenu déchiffré. */
   vault: Vault
+  /** Le compte et la synchronisation — inertes tant qu'on n'est pas connecté. */
+  sync: SyncApi
 
   addNotebook: () => Notebook
   renameNotebook: (id: Id, name: string) => void
