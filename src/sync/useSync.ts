@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch } from
 import type { Action } from '../store/reducer'
 import type { FolioState } from '../types'
 import { syncConfig } from './config'
-import { syncOnce } from './engine'
+import { NEW_DEVICE, syncOnce, type Cursors } from './engine'
 import { readableAuthError, type Account, type Remote } from './remote'
 import { supabaseRemote } from './supabase'
 
@@ -34,20 +34,28 @@ const PERIOD_MS = 20_000
 /** Attente après une frappe avant d'envoyer, pour ne pas parler à chaque mot. */
 const DEBOUNCE_MS = 3_000
 
-/** Le curseur est propre à chaque compte : en changer ne doit rien mélanger. */
+/** Les repères sont propres à chaque compte : en changer ne doit rien mélanger. */
 const cursorKey = (accountId: string) => `folio:sync-cursor:${accountId}`
 
-function readCursor(accountId: string): number {
+function readCursors(accountId: string): Cursors {
   try {
-    return Number(localStorage.getItem(cursorKey(accountId)) ?? 0) || 0
+    const raw = localStorage.getItem(cursorKey(accountId))
+    if (!raw) return NEW_DEVICE
+    const parsed = JSON.parse(raw) as Partial<Cursors>
+    return {
+      pulled: typeof parsed.pulled === 'number' ? parsed.pulled : 0,
+      pushed: typeof parsed.pushed === 'number' ? parsed.pushed : 0,
+    }
   } catch {
-    return 0
+    // Illisible, ou écrit par la version à repère unique : on repart de zéro,
+    // ce qui relit tout une fois et se remet d'aplomb.
+    return NEW_DEVICE
   }
 }
 
-function writeCursor(accountId: string, cursor: number): void {
+function writeCursors(accountId: string, cursors: Cursors): void {
   try {
-    localStorage.setItem(cursorKey(accountId), String(cursor))
+    localStorage.setItem(cursorKey(accountId), JSON.stringify(cursors))
   } catch {
     // Sans stockage, on repartira de zéro au prochain lancement : la
     // synchronisation sera plus bavarde, mais restera correcte.
@@ -100,17 +108,16 @@ export function useSync(
     running.current = true
     setStatus('syncing')
     try {
-      const before = readCursor(current.id)
-      const outcome = await syncOnce(remote, latest.current, before)
+      const outcome = await syncOnce(remote, latest.current, readCursors(current.id))
       // Ce qui arrive du serveur repasse par le reducer, donc par `settle` :
       // la page ouverte a pu être supprimée ailleurs.
       if (outcome.received) dispatch({ type: 'state/hydrate', state: outcome.state })
-      writeCursor(current.id, outcome.cursor)
+      writeCursors(current.id, outcome.cursors)
       setLastSyncAt(Date.now())
       setReason(null)
       setStatus('synced')
     } catch (error) {
-      // Le curseur n'a pas bougé : ce qui n'est pas parti repartira.
+      // Les repères n'ont pas bougé : ce qui n'est pas parti repartira.
       setReason(readableAuthError(error instanceof Error ? error.message : 'Échec inconnu.'))
       setStatus('error')
     } finally {

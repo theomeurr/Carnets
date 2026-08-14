@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FolioState, Page } from '../types'
-import { syncOnce } from './engine'
+import { NEW_DEVICE, syncOnce, type Cursors } from './engine'
 import { fakeRemote } from './fake'
 
 const page = (id: string, title: string, updatedAt: number): Page => ({
@@ -30,17 +30,17 @@ function classeur(pages: Page[], over: Partial<FolioState> = {}): FolioState {
 describe('un tour de synchronisation', () => {
   it('envoie le classeur au premier tour', async () => {
     const remote = fakeRemote()
-    const out = await syncOnce(remote, classeur([page('p1', 'Budget', 100)]), 0, 200)
+    const out = await syncOnce(remote, classeur([page('p1', 'Budget', 100)]), NEW_DEVICE, 200)
     expect(out.sent).toBe(true)
     expect(out.received).toBe(false)
-    expect(out.cursor).toBe(200)
+    expect(out.cursors.pushed).toBe(200)
   })
 
   it('ne parle pas pour rien quand rien n’a bougé', async () => {
     const remote = fakeRemote()
     const state = classeur([page('p1', 'Budget', 100)])
-    await syncOnce(remote, state, 0, 200)
-    const out = await syncOnce(remote, state, 1_000_000, 1_000_100)
+    await syncOnce(remote, state, NEW_DEVICE, 200)
+    const out = await syncOnce(remote, state, { pulled: 1_000_000, pushed: 1_000_000 }, 1_000_100)
     expect(out.sent).toBe(false)
     expect(out.received).toBe(false)
     expect(remote.pushes).toBe(1)
@@ -49,7 +49,7 @@ describe('un tour de synchronisation', () => {
   it('rend le même état quand il n’y a rien à intégrer', async () => {
     const remote = fakeRemote()
     const state = classeur([page('p1', 'Budget', 100)])
-    const out = await syncOnce(remote, state, 1_000_000, 1_000_100)
+    const out = await syncOnce(remote, state, { pulled: 1_000_000, pushed: 1_000_000 }, 1_000_100)
     // Même référence : l'enregistrement local n'écrira donc rien.
     expect(out.state).toBe(state)
   })
@@ -59,52 +59,52 @@ describe('deux appareils', () => {
   it('la note écrite sur A arrive sur B', async () => {
     const remote = fakeRemote()
     const a = classeur([page('p1', 'Écrite sur A', 100)])
-    await syncOnce(remote, a, 0, 200)
+    await syncOnce(remote, a, NEW_DEVICE, 200)
 
     const b = classeur([])
-    const out = await syncOnce(remote, b, 0, 300)
+    const out = await syncOnce(remote, b, NEW_DEVICE, 300)
     expect(out.received).toBe(true)
     expect(out.state.pages.map((p) => p.title)).toEqual(['Écrite sur A'])
   })
 
   it('la plus récente des deux versions l’emporte, des deux côtés', async () => {
     const remote = fakeRemote()
-    await syncOnce(remote, classeur([page('p1', 'Version A', 100)]), 0, 200)
+    await syncOnce(remote, classeur([page('p1', 'Version A', 100)]), NEW_DEVICE, 200)
 
     // B a modifié la même page plus tard, hors ligne.
     const b = classeur([page('p1', 'Version B, plus récente', 500)])
-    const surB = await syncOnce(remote, b, 0, 600)
+    const surB = await syncOnce(remote, b, NEW_DEVICE, 600)
     expect(surB.state.pages[0].title).toBe('Version B, plus récente')
 
     // A resynchronise et reçoit la version de B.
-    const surA = await syncOnce(remote, classeur([page('p1', 'Version A', 100)]), 0, 700)
+    const surA = await syncOnce(remote, classeur([page('p1', 'Version A', 100)]), NEW_DEVICE, 700)
     expect(surA.state.pages[0].title).toBe('Version B, plus récente')
   })
 
   it('une suppression sur A retire la note de B', async () => {
     const remote = fakeRemote()
-    await syncOnce(remote, classeur([page('p1', 'À jeter', 100)]), 0, 200)
+    await syncOnce(remote, classeur([page('p1', 'À jeter', 100)]), NEW_DEVICE, 200)
 
     // A supprime : la page disparaît, la trace part au serveur.
     const a = classeur([], { tombstones: [{ id: 'p1', kind: 'page', deletedAt: 300 }] })
-    await syncOnce(remote, a, 0, 400)
+    await syncOnce(remote, a, NEW_DEVICE, 400)
 
     // B avait encore la page.
     const b = classeur([page('p1', 'À jeter', 100)])
-    const out = await syncOnce(remote, b, 0, 500)
+    const out = await syncOnce(remote, b, NEW_DEVICE, 500)
     expect(out.state.pages).toEqual([])
   })
 
   it('la note supprimée ne revient pas au tour suivant', async () => {
     const remote = fakeRemote()
-    await syncOnce(remote, classeur([page('p1', 'À jeter', 100)]), 0, 200)
+    await syncOnce(remote, classeur([page('p1', 'À jeter', 100)]), NEW_DEVICE, 200)
 
     let a = classeur([], { tombstones: [{ id: 'p1', kind: 'page', deletedAt: 300 }] })
-    let cursor = 0
+    let cursors: Cursors = NEW_DEVICE
     for (const now of [400, 500, 600]) {
-      const out = await syncOnce(remote, a, cursor, now)
+      const out = await syncOnce(remote, a, cursors, now)
       a = out.state
-      cursor = out.cursor
+      cursors = out.cursors
     }
     expect(a.pages).toEqual([])
   })
@@ -115,21 +115,21 @@ describe('coupure de réseau', () => {
     const remote = fakeRemote()
     remote.offline = true
     const state = classeur([page('p1', 'Écrite hors ligne', 100)])
-    await expect(syncOnce(remote, state, 0, 200)).rejects.toThrow('injoignable')
+    await expect(syncOnce(remote, state, NEW_DEVICE, 200)).rejects.toThrow('injoignable')
   })
 
   it('rattrape le retard au retour du réseau', async () => {
     const remote = fakeRemote()
     remote.offline = true
     const state = classeur([page('p1', 'Écrite hors ligne', 100)])
-    await syncOnce(remote, state, 0, 200).catch(() => {})
+    await syncOnce(remote, state, NEW_DEVICE, 200).catch(() => {})
 
     // Le curseur n'a pas avancé : la page repart au tour suivant.
     remote.offline = false
-    const out = await syncOnce(remote, state, 0, 300)
+    const out = await syncOnce(remote, state, NEW_DEVICE, 300)
     expect(out.sent).toBe(true)
 
-    const autre = await syncOnce(remote, classeur([]), 0, 400)
+    const autre = await syncOnce(remote, classeur([]), NEW_DEVICE, 400)
     expect(autre.state.pages.map((p) => p.title)).toEqual(['Écrite hors ligne'])
   })
 })
@@ -147,7 +147,7 @@ describe('notes protégées', () => {
       createdAt: 0,
       updatedAt: 100,
     }
-    await syncOnce(remote, classeur([scellee]), 0, 200)
+    await syncOnce(remote, classeur([scellee]), NEW_DEVICE, 200)
 
     const recu = await remote.pull(0)
     expect(recu.pages[0].cipher).toBe('U2FsdGVkX1+secret')
@@ -172,11 +172,58 @@ describe('notes protégées', () => {
         },
       ],
     })
-    await syncOnce(remote, state, 0, 200)
+    await syncOnce(remote, state, NEW_DEVICE, 200)
 
-    const out = await syncOnce(remote, classeur([]), 0, 300)
+    const out = await syncOnce(remote, classeur([]), NEW_DEVICE, 300)
     expect(out.state.locks.map((l) => l.id)).toEqual(['s1'])
     // Le sel et le témoin voyagent : le mot de passe, lui, ne quitte rien.
     expect(out.state.locks[0].salt).toBe('sel')
+  })
+})
+
+describe('horloges désaccordées', () => {
+  /**
+   * Le défaut qui a motivé la séparation des deux repères : le PC est en
+   * avance de deux minutes sur le téléphone. Avec un curseur unique tiré de
+   * l'horloge locale, le PC plaçait son repère au-delà des dates écrites par
+   * le téléphone et ne redemandait plus jamais ses notes.
+   */
+  const PC_EN_AVANCE = 120_000
+
+  it('le PC reçoit ce que le téléphone écrit, malgré son horloge en avance', async () => {
+    const remote = fakeRemote()
+
+    // Le PC synchronise à son heure à lui.
+    const pcInitial = await syncOnce(remote, classeur([page('p1', 'Départ', 1000)]), NEW_DEVICE, 1000 + PC_EN_AVANCE)
+
+    // Le téléphone, en retard, écrit une note et l'envoie.
+    const tel = classeur([page('p1', 'Départ', 1000), page('p2', 'Écrite au téléphone', 2000)])
+    await syncOnce(remote, tel, NEW_DEVICE, 2000)
+
+    // Le PC resynchronise : il doit voir la note, bien que 2000 soit très
+    // en deçà de sa propre horloge.
+    const pc = await syncOnce(remote, classeur([page('p1', 'Départ', 1000)]), pcInitial.cursors, 3000 + PC_EN_AVANCE)
+    expect(pc.state.pages.map((p) => p.title)).toContain('Écrite au téléphone')
+  })
+
+  it('le repère de lecture suit les données, pas l’horloge locale', async () => {
+    const remote = fakeRemote()
+    await syncOnce(remote, classeur([page('p1', 'Note', 500)]), NEW_DEVICE, 999_999)
+
+    const out = await syncOnce(remote, classeur([]), NEW_DEVICE, 999_999)
+    // La date la plus récente vue dans les données vaut 500 — pas 999 999.
+    expect(out.cursors.pulled).toBe(500)
+    expect(out.cursors.pushed).toBe(999_999)
+  })
+
+  it('la suppression traverse aussi un décalage d’horloge', async () => {
+    const remote = fakeRemote()
+    const pcInitial = await syncOnce(remote, classeur([page('p1', 'À jeter', 1000)]), NEW_DEVICE, 1000 + PC_EN_AVANCE)
+
+    const tel = classeur([], { tombstones: [{ id: 'p1', kind: 'page', deletedAt: 2000 }] })
+    await syncOnce(remote, tel, NEW_DEVICE, 2000)
+
+    const pc = await syncOnce(remote, classeur([page('p1', 'À jeter', 1000)]), pcInitial.cursors, 3000 + PC_EN_AVANCE)
+    expect(pc.state.pages).toEqual([])
   })
 })

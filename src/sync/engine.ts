@@ -2,11 +2,34 @@ import type { FolioState } from '../types'
 import { isEmpty, localChanges, merge, type Changeset } from './merge'
 import type { Remote } from './remote'
 
+/**
+ * Où en est cet appareil. **Deux repères, et non un seul** — c'est la
+ * distinction qui fait fonctionner la synchronisation entre machines dont les
+ * horloges ne sont pas d'accord :
+ *
+ *  * `pulled` est la date la plus récente **effectivement vue dans les données
+ *    du serveur**. Elle n'est comparée qu'à d'autres dates venues du serveur,
+ *    donc l'heure locale n'entre jamais dans l'équation.
+ *
+ *  * `pushed` est l'heure **locale** du dernier envoi. Elle n'est comparée
+ *    qu'aux dates que cet appareil a lui-même écrites, sur la même horloge.
+ *
+ * Un seul repère mélangerait les deux : un PC en avance d'une minute sur un
+ * téléphone placerait son curseur au-delà des dates écrites par le téléphone,
+ * et ne redemanderait plus jamais ses notes. C'est exactement le défaut que
+ * cette séparation corrige.
+ */
+export interface Cursors {
+  pulled: number
+  pushed: number
+}
+
+export const NEW_DEVICE: Cursors = { pulled: 0, pushed: 0 }
+
 export interface SyncOutcome {
   /** L'état après fusion — identique à l'entrée si rien n'est arrivé. */
   state: FolioState
-  /** Nouveau curseur, à passer au tour suivant. */
-  cursor: number
+  cursors: Cursors
   /** Vrai si le serveur a apporté quelque chose. */
   received: boolean
   /** Vrai si l'on a envoyé quelque chose. */
@@ -14,46 +37,58 @@ export interface SyncOutcome {
 }
 
 /**
+ * Marge de recouvrement sur l'envoi. Deux modifications faites dans la même
+ * milliseconde que le dernier envoi passeraient sinon juste sous le seuil.
+ * Elle ne s'applique qu'au repère local, où elle a un sens.
+ */
+export const PUSH_OVERLAP_MS = 2_000
+
+/**
  * Un tour de synchronisation : on prend, puis on donne.
  *
  * **Tirer avant de pousser**, jamais l'inverse : si l'envoi échoue à
  * mi-chemin, on aura au moins intégré ce que les autres appareils avaient à
- * dire, et le curseur ne bougera pas — les modifications non envoyées
+ * dire, et les repères ne bougeront pas — les modifications non envoyées
  * repartiront au tour suivant.
- *
- * Le curseur est reculé de quelques secondes à chaque tour. Les horloges du
- * serveur et des appareils ne sont pas parfaitement d'accord ; sans cette
- * marge, une modification écrite pendant le tour précédent pourrait passer
- * juste sous le seuil et n'être jamais relue.
  */
-export const CURSOR_OVERLAP_MS = 5_000
-
 export async function syncOnce(
   remote: Remote,
   state: FolioState,
-  cursor: number,
+  cursors: Cursors,
   now = Date.now(),
 ): Promise<SyncOutcome> {
-  const incoming = await remote.pull(Math.max(0, cursor - CURSOR_OVERLAP_MS))
+  const incoming = await remote.pull(cursors.pulled)
   const received = !isEmpty(incoming)
   const merged = received ? merge(state, incoming) : state
 
+  // Le nouveau repère de lecture vient des données elles-mêmes, jamais de
+  // l'horloge locale.
+  const pulled = Math.max(cursors.pulled, latestStamp(incoming))
+
   // Ce qu'on envoie est calculé **après** la fusion : inutile de renvoyer au
   // serveur ce qu'il vient de nous donner.
-  const outgoing = localChanges(merged, Math.max(0, cursor - CURSOR_OVERLAP_MS))
+  const outgoing = localChanges(merged, Math.max(0, cursors.pushed - PUSH_OVERLAP_MS))
   const sent = !isEmpty(outgoing)
   if (sent) await remote.push(outgoing)
 
-  return { state: merged, cursor: now, received, sent }
+  return { state: merged, cursors: { pulled, pushed: now }, received, sent }
 }
 
-/** Le tout premier tour : on prend tout, et on envoie tout. */
-export function firstSync(
-  remote: Remote,
-  state: FolioState,
-  now = Date.now(),
-): Promise<SyncOutcome> {
-  return syncOnce(remote, state, 0, now)
+/** La date la plus récente d'un lot reçu, ou 0 s'il est vide. */
+function latestStamp(changes: Changeset): number {
+  let latest = 0
+  for (const entity of [
+    ...changes.notebooks,
+    ...changes.sections,
+    ...changes.pages,
+    ...changes.locks,
+  ]) {
+    if (entity.updatedAt > latest) latest = entity.updatedAt
+  }
+  for (const tombstone of changes.tombstones) {
+    if (tombstone.deletedAt > latest) latest = tombstone.deletedAt
+  }
+  return latest
 }
 
 export type { Changeset }
