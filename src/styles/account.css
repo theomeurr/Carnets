@@ -90,7 +90,6 @@
 }
 
 .account-page__switch,
-.account-page__skip,
 .account-page__signout {
   align-self: center;
   padding: 8px;
@@ -105,17 +104,6 @@
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-
-/* Rester en local est un choix ordinaire, pas un renoncement : on l'écrit
-   sobrement, sans le déguiser en bouton principal ni le cacher. */
-.account-page__skip {
-  margin-top: 18px;
-  color: var(--text-mute);
-}
-
-.account-page__skip:hover {
-  color: var(--text);
 }
 
 .account-page__signout {

@@ -11,7 +11,6 @@ import { TopBar } from './components/TopBar'
 import { UpdatePrompt } from './components/UpdatePrompt'
 import { FolioProvider } from './store/FolioProvider'
 import { useFolio } from './store/useFolio'
-import { choiceMade, rememberChoice } from './sync/welcome'
 
 export default function App() {
   return (
@@ -26,38 +25,30 @@ export default function App() {
 function Workspace() {
   const { sync } = useFolio()
   const [searching, setSearching] = useState(false)
-  /** Ouverte depuis le bandeau. */
+  /** Ouverte depuis le bandeau, alors qu'on est déjà connecté. */
   const [account, setAccount] = useState(false)
-  /** A-t-on déjà tranché sur cet appareil ? Lu une fois, au montage. */
-  const [chosen, setChosen] = useState(choiceMade)
   const { pane } = useMobilePane()
 
-  // Un compte connu vaut choix fait : quelqu'un qui se connecte, ou qui l'est
-  // déjà depuis une session précédente, ne doit plus voir la page s'imposer.
-  useEffect(() => {
-    if (!sync.account) return
-    rememberChoice()
-    setChosen(true)
-  }, [sync.account])
-
-  // Stable : la page s'en sert comme dépendance d'effet pour la touche Échap.
-  const settle = useCallback(() => {
-    rememberChoice()
-    setChosen(true)
-    setAccount(false)
-  }, [])
+  const close = useCallback(() => setAccount(false), [])
 
   /*
-   * La page s'impose à l'ouverture tant que la question n'a pas été tranchée,
-   * et seulement une fois qu'on sait s'il y a une session : sans cette
-   * attente, elle apparaîtrait puis disparaîtrait sous les yeux d'un compte
-   * déjà connecté.
+   * La connexion est obligatoire : sans compte, on ne passe pas. La page
+   * attend cependant de savoir s'il y a une session — elle est relue du
+   * disque à l'ouverture — sinon elle apparaîtrait puis disparaîtrait sous
+   * les yeux d'un compte déjà connecté.
+   *
+   * Le cas `!sync.available` n'est pas un oubli : sans serveur configuré, il
+   * n'y a pas de compte possible, et exiger une connexion reviendrait à
+   * rendre l'application inutilisable. Folio reste alors purement local.
    */
-  const showAccount = account || (sync.available && sync.resolved && !sync.account && !chosen)
+  const showAccount = account || (sync.available && sync.resolved && !sync.account)
 
   // Ctrl/⌘ + K ouvre la recherche depuis n'importe où, y compris en pleine
-  // frappe dans l'éditeur.
+  // frappe dans l'éditeur — mais pas depuis la page de compte. Le raccourci
+  // est posé sur la fenêtre, et `inert` n'arrête pas ce qui vient de là : sans
+  // cette réserve, il ouvrait la recherche derrière une connexion obligatoire.
   useEffect(() => {
+    if (showAccount) return
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
@@ -66,7 +57,7 @@ function Workspace() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
+  }, [showAccount])
 
   return (
     <>
@@ -84,7 +75,7 @@ function Workspace() {
         {searching && <SearchDialog onClose={() => setSearching(false)} />}
         <UpdatePrompt />
       </div>
-      {showAccount && <AccountPage onDone={settle} />}
+      {showAccount && <AccountPage onDone={close} />}
     </>
   )
 }

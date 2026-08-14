@@ -12,21 +12,25 @@ import { IconCheck, IconCloud, IconLock } from './Icons'
  * travail sans le démonter — revenir aux notes les retrouve telles quelles,
  * curseur et historique d'annulation compris.
  *
- * `onDone` est appelé quand on quitte la page, de quelque manière que ce soit.
+ * Tant que personne n'est connecté, elle ne se referme pas : la connexion est
+ * obligatoire. Une fois connecté, on peut y revenir et en ressortir.
+ *
+ * `onDone` est appelé quand on quitte la page.
  */
 export function AccountPage({ onDone }: { onDone: () => void }) {
   const { sync } = useFolio()
+  const dismissible = sync.account !== null
 
-  // Échap referme, comme partout ailleurs dans l'application. Au premier
-  // lancement cela revient à choisir de continuer sans compte, ce qui est
-  // exactement ce que fait le bouton du même nom.
+  // Échap referme, comme partout ailleurs — mais seulement quand il y a
+  // quelque chose derrière à retrouver.
   useEffect(() => {
+    if (!dismissible) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onDone()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onDone])
+  }, [dismissible, onDone])
 
   return (
     <div className="account-page" role="dialog" aria-modal="true" aria-label="Votre compte">
@@ -91,8 +95,9 @@ function SignIn({ onDone }: { onDone: () => void }) {
     <form className="account-page__form" onSubmit={submit}>
       <h1 className="account-page__title">{creating ? 'Créer un compte' : 'Se connecter'}</h1>
       <p className="account-page__lead">
-        Un compte garde vos notes à jour sur tous vos appareils. Sans compte, Folio fonctionne
-        exactement pareil — tout reste simplement sur celui-ci.
+        {creating
+          ? 'Votre compte garde vos notes à jour sur tous vos appareils : ce que vous écrivez ici se retrouve ailleurs.'
+          : 'Folio a besoin de votre compte pour ouvrir vos notes et les tenir à jour sur vos autres appareils.'}
       </p>
 
       {creating && (
@@ -177,10 +182,6 @@ function SignIn({ onDone }: { onDone: () => void }) {
           quitte jamais cet appareil.
         </span>
       </p>
-
-      <button type="button" className="account-page__skip" disabled={busy} onClick={onDone}>
-        Continuer sans compte
-      </button>
     </form>
   )
 }
