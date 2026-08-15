@@ -3,11 +3,13 @@ import { AccountPage } from './components/AccountPage'
 import { Guard } from './components/Guard'
 import { MobilePaneProvider } from './components/MobilePane'
 import { useMobilePane } from './components/paneContext'
+import { usePanels } from './components/usePanels'
 import { PageEditor } from './components/PageEditor'
 import { PageList } from './components/PageList'
 import { SaveBanner } from './components/SaveBanner'
 import { SearchDialog } from './components/SearchDialog'
 import { Sidebar } from './components/Sidebar'
+import { Rail } from './components/Rail'
 import { TopBar } from './components/TopBar'
 import { UpdatePrompt } from './components/UpdatePrompt'
 import { FolioProvider } from './store/FolioProvider'
@@ -31,6 +33,7 @@ function Workspace() {
   /** Ouverte depuis le bandeau, alors qu'on est déjà connecté. */
   const [account, setAccount] = useState(false)
   const { pane } = useMobilePane()
+  const panels = usePanels()
 
   const close = useCallback(() => setAccount(false), [])
 
@@ -70,9 +73,21 @@ function Workspace() {
       <div className="app" inert={showAccount}>
         <TopBar onSearch={() => setSearching(true)} onAccount={() => setAccount(true)} />
         <SaveBanner />
-        <main className={`columns is-${pane}`}>
-          <Sidebar />
-          <PageList />
+        <main
+          className={`columns is-${pane} ${panels.sidebar ? 'is-folded-sidebar' : ''} ${
+            panels.pages ? 'is-folded-pages' : ''
+          }`}
+        >
+          {panels.sidebar ? (
+            <Rail label="Bloc-notes" onOpen={() => panels.toggle('sidebar')} />
+          ) : (
+            <Sidebar onFold={() => panels.toggle('sidebar')} />
+          )}
+          {panels.pages ? (
+            <Rail label="Pages" onOpen={() => panels.toggle('pages')} />
+          ) : (
+            <PageList onFold={() => panels.toggle('pages')} />
+          )}
           <PageEditor />
         </main>
         {searching && <SearchDialog onClose={() => setSearching(false)} />}

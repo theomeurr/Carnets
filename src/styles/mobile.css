@@ -82,6 +82,13 @@
     padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
 
+  /* Replier n'a pas de sens ici : une seule colonne est visible, et la
+     replier ne laisserait rien. Le bouton disparaît plutôt que de ne rien
+     faire. */
+  .column-head__fold {
+    display: none;
+  }
+
   /* La page de compte occupe tout l'écran : l'encoche et la barre d'accueil
      sont à elle aussi. */
   .account-page {

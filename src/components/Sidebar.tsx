@@ -6,6 +6,7 @@ import { IconLock, IconNotebook, IconPlus, IconTrash } from './Icons'
 import { useMobilePane } from './paneContext'
 import { InlineRename } from './InlineRename'
 import { ConfirmDialog } from './Modal'
+import { CollapseButton } from './Rail'
 import { RowMenu } from './RowMenu'
 import { TrashDialog } from './TrashDialog'
 import { useLockMenu } from './useLockMenu'
@@ -19,7 +20,7 @@ type Pending =
  * Colonne de gauche : la liste des bloc-notes, chacun avec son onglet coloré,
  * et les sections du bloc-notes ouvert dépliées juste en dessous.
  */
-export function Sidebar() {
+export function Sidebar({ onFold }: { onFold: () => void }) {
   const folio = useFolio()
   const { state, select, addNotebook, addSection, trash, reorder } = folio
   const { notebook: activeNotebook, section: activeSection, sections } = useCurrentView()
@@ -73,6 +74,7 @@ export function Sidebar() {
         >
           <IconPlus />
         </button>
+        <CollapseButton label="les bloc-notes" onClose={onFold} />
       </div>
 
       <div className="sidebar__scroll">

@@ -9,12 +9,13 @@ import { InlineRename } from './InlineRename'
 import { ConfirmDialog, Modal } from './Modal'
 import { MoveDialog } from './MoveDialog'
 import { PrintSheet, type Printable } from './PrintSheet'
+import { CollapseButton } from './Rail'
 import { RowMenu } from './RowMenu'
 import { useLockMenu } from './useLockMenu'
 import { useReorder } from './useReorder'
 
 /** Colonne du milieu : les pages de la section ouverte. */
-export function PageList() {
+export function PageList({ onFold }: { onFold: () => void }) {
   const folio = useFolio()
   const { select, addPage, vault, reorder, movePage } = folio
   const { controlsFor, dialogs } = useLockMenu()
@@ -65,6 +66,7 @@ export function PageList() {
             <IconPlus />
           </button>
         )}
+        <CollapseButton label="les pages" onClose={onFold} />
       </div>
 
       <div className="pages__scroll">

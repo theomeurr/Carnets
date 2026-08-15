@@ -9,6 +9,7 @@ import { useFolio, useCurrentView } from '../store/useFolio'
 import type { Page } from '../types'
 import { Canvas } from './Canvas'
 import { EditorToolbar } from './EditorToolbar'
+import { useNarrow } from './useNarrow'
 import { IconPage, IconPlus } from './Icons'
 import { SealedPanel } from './SealedPanel'
 
@@ -224,23 +225,4 @@ function PageSurface({
 function countWords(text: string): string {
   const words = text.trim() ? text.trim().split(/\s+/).length : 0
   return words === 0 ? 'page vide' : `${words} mot${words > 1 ? 's' : ''}`
-}
-
-/**
- * Vrai sur les écrans où la toile ne tient pas. Le seuil est celui du reste de
- * l'application, où une seule colonne est visible à la fois.
- */
-function useNarrow(): boolean {
-  const [narrow, setNarrow] = useState(
-    () => typeof matchMedia === 'function' && matchMedia('(max-width: 820px)').matches,
-  )
-  useEffect(() => {
-    if (typeof matchMedia !== 'function') return
-    const query = matchMedia('(max-width: 820px)')
-    const update = () => setNarrow(query.matches)
-    update()
-    query.addEventListener('change', update)
-    return () => query.removeEventListener('change', update)
-  }, [])
-  return narrow
 }

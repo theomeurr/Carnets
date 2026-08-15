@@ -224,6 +224,65 @@
   padding: 0 8px 12px;
 }
 
+/*
+ * Volets repliés. La colonne cède la place à une bande verticale qui garde
+ * son nom sous les yeux : un volet qui disparaîtrait tout à fait laisserait
+ * l'application sans moyen visible de le retrouver.
+ */
+.columns.is-folded-sidebar {
+  grid-template-columns: 32px 296px minmax(0, 1fr);
+}
+
+.columns.is-folded-pages {
+  grid-template-columns: 246px 32px minmax(0, 1fr);
+}
+
+.columns.is-folded-sidebar.is-folded-pages {
+  grid-template-columns: 32px 32px minmax(0, 1fr);
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-mute);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.rail:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.rail__arrow {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.rail__label {
+  /* Le nom court à la verticale, lu de bas en haut comme une tranche de livre. */
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Le chevron du repli pointe vers la gauche, celui de la bande vers la droite. */
+.column-head__fold svg {
+  transform: rotate(180deg);
+}
+
 /* ---------- Bloc-notes ---------- */
 
 .notebook-list,
