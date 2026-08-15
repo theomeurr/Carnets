@@ -189,7 +189,8 @@ function PageSurface({
 
       <div className="editor__scroll">
         <div className="editor__sheet" ref={sheetRef}>
-          <p className="editor__breadcrumb">{breadcrumb}</p>
+          <div className="editor__head">
+            <p className="editor__breadcrumb">{breadcrumb}</p>
           <textarea
             ref={titleRef}
             className="editor__title"
@@ -206,9 +207,10 @@ function PageSurface({
               }
             }}
           />
-          <p className="editor__meta">
-            Modifié {formatDate(page.updatedAt)} · {countWords(content.text)}
-          </p>
+            <p className="editor__meta">
+              Modifié {formatDate(page.updatedAt)} · {countWords(content.text)}
+            </p>
+          </div>
           <Canvas
             zones={zones}
             onChange={write}

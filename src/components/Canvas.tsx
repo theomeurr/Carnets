@@ -10,7 +10,15 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { newId } from '../lib/id'
-import { DEFAULT_WIDTH, MIN_WIDTH, extent, isBlank, readingOrder, type Zone } from '../lib/zones'
+import {
+  DEFAULT_WIDTH,
+  MIN_WIDTH,
+  READING_WIDTH,
+  extent,
+  isBlank,
+  readingOrder,
+  type Zone,
+} from '../lib/zones'
 
 /**
  * La toile d'une page : des cadres de texte posés où l'on veut, comme dans un
@@ -28,7 +36,7 @@ import { DEFAULT_WIDTH, MIN_WIDTH, extent, isBlank, readingOrder, type Zone } fr
  */
 
 /** Marge sous le cadre le plus bas, pour qu'il reste de la place où cliquer. */
-const SPARE_HEIGHT = 220
+const SPARE_HEIGHT = 320
 
 export interface CanvasProps {
   zones: Zone[]
@@ -136,7 +144,16 @@ export function Canvas({ zones, onChange, onActive, onGone, stacked }: CanvasPro
     <div
       ref={surface}
       className={`canvas ${stacked ? 'is-stacked' : ''} ${handled ? 'is-handling' : ''}`}
-      style={stacked ? undefined : { minHeight: size.height + SPARE_HEIGHT }}
+      /*
+       * La toile descend sous son contenu, et jamais moins bas que l'écran :
+       * sans cela, le vide en bas de page n'appartenait à personne et les
+       * clics qui y tombaient ne créaient rien.
+       */
+      style={
+        stacked
+          ? undefined
+          : ({ '--canvas-min': `${size.height + SPARE_HEIGHT}px` } as React.CSSProperties)
+      }
       onMouseDown={openAt}
     >
       {shown.map((zone, index) => (
@@ -269,9 +286,10 @@ function ZoneEditor({
       ref={box}
       className="zone"
       data-zone-id={zone.id}
-      // Largeur nulle : le cadre suit la feuille — l'état d'une page qui n'a
-      // pas encore été mise en pages.
-      style={stacked ? undefined : { left: zone.x, top: zone.y, width: zone.w || '100%' }}
+      // Largeur nulle : le cadre prend la largeur de lecture. Il couvrait
+      // auparavant la feuille entière, ce qui ne laissait aucun endroit où
+      // cliquer pour en ouvrir un second.
+      style={stacked ? undefined : { left: zone.x, top: zone.y, width: zone.w || READING_WIDTH }}
     >
       {!stacked && (
         <>

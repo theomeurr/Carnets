@@ -26,11 +26,18 @@ export interface Zone {
 /** Largeur d'un cadre créé d'un clic. */
 export const DEFAULT_WIDTH = 360
 /**
- * Largeur d'un cadre qui n'en a pas encore : il suit alors celle de la
- * feuille. C'est l'état d'une page écrite avant la toile, qui doit rester
- * exactement telle qu'elle était.
+ * Largeur notée pour un cadre qui n'en a pas encore : il prend alors la
+ * largeur de lecture ci-dessous. C'est l'état d'une page écrite avant la
+ * toile, qui doit s'ouvrir exactement telle qu'elle était.
+ *
+ * Cette largeur était auparavant celle de la feuille entière, et c'était une
+ * erreur : le cadre couvrait toute la surface, et il ne restait nulle part où
+ * cliquer pour en poser un second.
  */
 export const FULL_WIDTH = 0
+
+/** La largeur d'une colonne de texte confortable à lire. */
+export const READING_WIDTH = 672
 /** En deçà, un cadre ne contient plus rien de lisible. */
 export const MIN_WIDTH = 140
 /** Espace laissé entre deux cadres quand on les aligne. */

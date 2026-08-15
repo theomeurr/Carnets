@@ -107,9 +107,18 @@
 }
 
 .editor__sheet {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 34px 44px 45vh;
+  /*
+   * La feuille prend toute la largeur disponible : c'est une surface, et il
+   * faut de la place pour poser des cadres côte à côte. Elle était limitée à
+   * 760 px et centrée — il n'y avait alors littéralement pas d'endroit où
+   * ouvrir un second cadre.
+   */
+  padding: 34px 44px 40px;
+}
+
+/* Le chemin, le titre et la date gardent une largeur de lecture. */
+.editor__head {
+  max-width: 672px;
 }
 
 .editor__breadcrumb {
@@ -355,6 +364,15 @@
     padding: 24px 20px 30vh;
   }
 
+  /* Empilés, les cadres n'ont pas besoin de vide où cliquer. */
+  .canvas.is-stacked {
+    min-height: 0;
+  }
+
+  .editor__head {
+    max-width: none;
+  }
+
   .editor__title {
     font-size: 25px;
   }
@@ -435,6 +453,12 @@
  */
 .canvas {
   position: relative;
+  /*
+   * Elle descend sous son contenu, et jamais moins bas que l'écran : le vide
+   * du bas de page doit appartenir à la toile pour qu'un clic y ouvre un
+   * cadre.
+   */
+  min-height: max(var(--canvas-min, 0px), 70vh);
   cursor: text;
 }
 
