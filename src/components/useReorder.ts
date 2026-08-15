@@ -53,7 +53,23 @@ interface Session {
   others: Id[]
 }
 
-export function useReorder(ids: Id[], onMove: (id: Id, to: number) => void): Reorder {
+/**
+ * Des cibles situées hors de la liste — déposer une page sur une section, par
+ * exemple. Elles se déclarent par un attribut dans le HTML plutôt que par un
+ * registre partagé : les deux colonnes n'ont alors rien à se dire, et l'on
+ * retrouve la cible sous le pointeur avec `elementFromPoint`.
+ */
+export interface Elsewhere {
+  /** L'attribut qui marque une cible et porte son identifiant. */
+  attribute: string
+  onDrop: (id: Id, target: string) => void
+}
+
+export function useReorder(
+  ids: Id[],
+  onMove: (id: Id, to: number) => void,
+  elsewhere?: Elsewhere,
+): Reorder {
   const nodes = useRef(new Map<Id, HTMLElement>())
   const session = useRef<Session | null>(null)
   const [dragging, setDragging] = useState<Id | null>(null)
@@ -61,16 +77,42 @@ export function useReorder(ids: Id[], onMove: (id: Id, to: number) => void): Reo
 
   const idsRef = useRef(ids)
   idsRef.current = ids
+  const elsewhereRef = useRef(elsewhere)
+  elsewhereRef.current = elsewhere
+  /** La cible extérieure actuellement survolée, marquée dans le document. */
+  const marked = useRef<HTMLElement | null>(null)
   const moveRef = useRef(onMove)
   moveRef.current = onMove
+
+  /*
+   * Le survol d'une cible extérieure est marqué directement dans le document,
+   * et non porté par un état React : la cible appartient à un autre composant,
+   * qu'il faudrait sinon relier à celui-ci pour un simple retour visuel. React
+   * ne pose jamais cet attribut, il ne peut donc pas entrer en conflit.
+   */
+  const mark = useCallback((element: HTMLElement | null) => {
+    if (marked.current === element) return
+    marked.current?.removeAttribute('data-drop-hover')
+    element?.setAttribute('data-drop-hover', 'true')
+    marked.current = element
+  }, [])
+
+  /** La cible extérieure sous le pointeur, s'il y en a une. */
+  const elsewhereAt = useCallback((x: number, y: number): HTMLElement | null => {
+    const attribute = elsewhereRef.current?.attribute
+    if (!attribute) return null
+    const under = document.elementFromPoint(x, y) as HTMLElement | null
+    return under?.closest<HTMLElement>(`[${attribute}]`) ?? null
+  }, [])
 
   const stop = useCallback(() => {
     const current = session.current
     if (current?.timer) clearTimeout(current.timer)
     session.current = null
+    mark(null)
     setDragging(null)
     setTarget(null)
-  }, [])
+  }, [mark])
 
   /** La place libre sous le pointeur, comptée dans la liste sans l'élément pris. */
   const placeUnder = useCallback((others: Id[], y: number): number => {
@@ -104,15 +146,22 @@ export function useReorder(ids: Id[], onMove: (id: Id, to: number) => void): Reo
         current.armed = true
         setDragging(current.id)
       }
-      setTarget(placeUnder(current.others, event.clientY))
+
+      // Une cible extérieure l'emporte sur un rang dans la liste : on ne peut
+      // pas être à la fois entre deux pages et sur une section.
+      const outside = elsewhereAt(event.clientX, event.clientY)
+      mark(outside)
+      setTarget(outside ? null : placeUnder(current.others, event.clientY))
     }
 
     const onUp = (event: PointerEvent) => {
       const current = session.current
       if (!current || event.pointerId !== current.pointerId) return
       if (current.armed) {
-        const to = placeUnder(current.others, event.clientY)
-        moveRef.current(current.id, to)
+        const outside = elsewhereAt(event.clientX, event.clientY)
+        const target = outside?.getAttribute(elsewhereRef.current!.attribute)
+        if (target) elsewhereRef.current!.onDrop(current.id, target)
+        else moveRef.current(current.id, placeUnder(current.others, event.clientY))
       }
       stop()
     }
@@ -137,7 +186,7 @@ export function useReorder(ids: Id[], onMove: (id: Id, to: number) => void): Reo
       window.removeEventListener('pointercancel', stop)
       document.removeEventListener('touchmove', holdStill)
     }
-  }, [placeUnder, stop])
+  }, [elsewhereAt, mark, placeUnder, stop])
 
   const itemProps = useCallback(
     (id: Id) => ({

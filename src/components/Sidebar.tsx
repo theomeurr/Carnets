@@ -153,6 +153,9 @@ export function Sidebar() {
                         <li key={section.id}>
                           <div
                             {...dragSections.itemProps(section.id)}
+                            /* Cible d'accueil pour une page venue de la
+                               colonne du milieu ; voir `useReorder`. */
+                            data-drop-section={section.id}
                             className={`section-row ${
                               section.id === activeSection?.id ? 'is-active' : ''
                             } ${dragSections.dragging === section.id ? 'is-dragging' : ''} ${

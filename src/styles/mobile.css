@@ -147,6 +147,10 @@
     min-width: 38px;
   }
 
+  .move-list__choice {
+    min-height: 44px;
+  }
+
   /*
    * Deux réflexes du navigateur qui donnent l'impression que l'application
    * traîne. Le premier est le rectangle gris que Safari peint sur tout ce

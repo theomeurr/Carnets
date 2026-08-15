@@ -6,7 +6,8 @@ import type { Id } from '../types'
 import { IconLock, IconPlus } from './Icons'
 import { useMobilePane } from './paneContext'
 import { InlineRename } from './InlineRename'
-import { ConfirmDialog } from './Modal'
+import { ConfirmDialog, Modal } from './Modal'
+import { MoveDialog } from './MoveDialog'
 import { PrintSheet, type Printable } from './PrintSheet'
 import { RowMenu } from './RowMenu'
 import { useLockMenu } from './useLockMenu'
@@ -15,7 +16,7 @@ import { useReorder } from './useReorder'
 /** Colonne du milieu : les pages de la section ouverte. */
 export function PageList() {
   const folio = useFolio()
-  const { select, addPage, vault, reorder } = folio
+  const { select, addPage, vault, reorder, movePage } = folio
   const { controlsFor, dialogs } = useLockMenu()
   const { show } = useMobilePane()
   const { notebook, section, page: activePage, pages } = useCurrentView()
@@ -24,9 +25,18 @@ export function PageList() {
   const [pending, setPending] = useState<{ id: Id; title: string } | null>(null)
   const [printing, setPrinting] = useState<Printable | null>(null)
 
+  const [refused, setRefused] = useState<string | null>(null)
+  const [moving, setMoving] = useState<Id | null>(null)
+
   const drag = useReorder(
     pages.map((page) => page.id),
     (id, to) => reorder('page', id, to),
+    {
+      // Déposer une page sur une section de la colonne de gauche l'y fait
+      // passer. Le refus vient du coffre : voir `movePage`.
+      attribute: 'data-drop-section',
+      onDrop: (id, sectionId) => setRefused(movePage(id, sectionId)),
+    },
   )
 
   const accent = colorOf(notebook?.color).hex
@@ -138,6 +148,7 @@ export function PageList() {
                         setPending({ id: page.id, title: content ? title : 'Page verrouillée' })
                       }
                       lock={controlsFor('page', page.id, content ? title : 'Page verrouillée')}
+                      onMove={() => setMoving(page.id)}
                       // Une page fermée n'a rien de lisible à imprimer : son
                       // contenu est chiffré et la clé n'existe pas ici.
                       onPrint={
@@ -187,6 +198,30 @@ export function PageList() {
             setPending(null)
           }}
           onCancel={() => setPending(null)}
+        />
+      )}
+
+      {refused && (
+        <Modal
+          title="Déplacement impossible"
+          onClose={() => setRefused(null)}
+          footer={
+            <button type="button" className="button is-primary" onClick={() => setRefused(null)}>
+              Fermer
+            </button>
+          }
+        >
+          <p className="dialog-lead" style={{ marginBottom: 0 }}>
+            {refused}
+          </p>
+        </Modal>
+      )}
+
+      {moving && section && (
+        <MoveDialog
+          pageId={moving}
+          currentSectionId={section.id}
+          onClose={() => setMoving(null)}
         />
       )}
 

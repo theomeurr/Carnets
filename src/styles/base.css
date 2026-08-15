@@ -721,3 +721,80 @@ mark {
   user-select: none;
   -webkit-user-select: none;
 }
+
+/* La cible qui accueillerait la page relâchée maintenant. */
+[data-drop-hover] {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* ---------- Choisir une section d'accueil ---------- */
+
+.move-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.move-list__notebook {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 4px;
+  color: var(--text-mute);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.move-list__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.move-list__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.move-list__choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.move-list__choice:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.move-list__choice:disabled {
+  color: var(--text-mute);
+  cursor: default;
+}
+
+.move-list__here {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-style: italic;
+}

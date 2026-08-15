@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react'
 import { nextColor } from '../lib/colors'
 import { newId } from '../lib/id'
-import { lockOfPage } from '../lib/locks'
+import { lockOfPage, lockOfPageIn } from '../lib/locks'
 import type { EntityKind, FolioState, Id, Notebook, Page, Section, TrashedItem } from '../types'
 import { FolioContext, type FolioApi, type SaveState, type TrashApi } from './context'
 import { describeFailure, openStore, STATE_VERSION, type Driver } from './persistence'
@@ -283,6 +283,36 @@ export function FolioProvider({ children }: { children: ReactNode }) {
     [vault],
   )
 
+  /*
+   * Faire passer une page dans une autre section.
+   *
+   * Le refus n'est pas un détail de confort : le contenu d'une page protégée
+   * est chiffré avec la clé du verrou qui la couvre. La faire passer sous un
+   * autre verrou la rendrait illisible pour toujours ; l'en sortir déposerait
+   * en clair une page qui ne l'est pas. On refuse donc, plutôt que de
+   * rechiffrer à la volée — ce qui exigerait les deux mots de passe ouverts,
+   * et ferait dépendre un glissement de la mémoire de qui le fait.
+   */
+  const movePage = useCallback((id: Id, sectionId: Id): string | null => {
+    const current = latest.current
+    const page = current.pages.find((candidate) => candidate.id === id)
+    if (!page || page.sectionId === sectionId) return null
+    if (!current.sections.some((section) => section.id === sectionId)) return null
+
+    const before = lockOfPage(current, page)
+    const after = lockOfPageIn(current, page, sectionId)
+    if (before?.scope !== after?.scope || before?.id !== after?.id) {
+      return after
+        ? 'Cette section est protégée par un autre mot de passe. Retirez le verrou avant de déplacer la page.'
+        : 'Cette page est protégée. La sortir de là où elle l’est la rendrait illisible : retirez d’abord le verrou.'
+    }
+
+    const now = Date.now()
+    const family = current.pages.filter((candidate) => candidate.sectionId === sectionId)
+    dispatch({ type: 'page/move', id, sectionId, order: appendOrder(family, now), now })
+    return null
+  }, [])
+
   const trashApi = useMemo<TrashApi>(
     () => ({
       items: visible(trash),
@@ -315,6 +345,7 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       vault,
       sync,
       reorder: (kind, id, to) => dispatch({ type: 'reorder', kind, id, to, now: Date.now() }),
+      movePage,
       trash: trashApi,
       addNotebook,
       renameNotebook: (id, name) =>
@@ -341,6 +372,7 @@ export function FolioProvider({ children }: { children: ReactNode }) {
       sync,
       trashApi,
       discard,
+      movePage,
       addNotebook,
       addSection,
       addPage,

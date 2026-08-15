@@ -59,6 +59,13 @@ export interface FolioApi {
    */
   reorder: (kind: 'notebook' | 'section' | 'page', id: Id, to: number) => void
 
+  /**
+   * Fait passer une page dans une autre section. Rend `null` si c'est fait, ou
+   * la raison du refus — un déplacement qui changerait le verrou couvrant la
+   * page rendrait son contenu illisible.
+   */
+  movePage: (id: Id, sectionId: Id) => string | null
+
   /** La corbeille : ce qui a été supprimé et qu'on peut encore remettre. */
   trash: TrashApi
 

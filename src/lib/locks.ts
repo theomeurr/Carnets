@@ -21,6 +21,21 @@ export function lockOfPage(state: FolioState, page: Page): Lock | undefined {
   return notebookId ? lockOn(state, 'notebook', notebookId) : undefined
 }
 
+/**
+ * Le verrou qui protégerait cette page si elle se trouvait dans `sectionId`.
+ *
+ * Sert à refuser un déplacement qui changerait de verrou : le contenu d'une
+ * page protégée est chiffré avec la clé du verrou qui la couvre, et la faire
+ * passer sous un autre la rendrait illisible pour toujours — ou déposerait en
+ * clair, sous un verrou, une page qui ne l'est pas.
+ *
+ * Écrit en réutilisant `lockOfPage` plutôt qu'en répétant sa cascade : les
+ * deux ne peuvent donc pas diverger.
+ */
+export function lockOfPageIn(state: FolioState, page: Page, sectionId: Id): Lock | undefined {
+  return lockOfPage(state, { ...page, sectionId })
+}
+
 /** Toutes les pages qu'un verrou posé sur cette cible protégerait. */
 export function pagesUnder(state: FolioState, scope: LockScope, id: Id): Page[] {
   if (scope === 'page') return state.pages.filter((page) => page.id === id)

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { NOTEBOOK_COLORS } from '../lib/colors'
 import {
+  IconArrow,
   IconLock,
   IconMore,
   IconPalette,
@@ -20,13 +21,23 @@ export interface RowMenuProps {
   lock?: LockControls
   /** Fourni pour les pages lisibles : imprimer ou enregistrer en PDF. */
   onPrint?: () => void
+  /** Fourni pour les pages : choisir une autre section, sans glisser. */
+  onMove?: () => void
 }
 
 /**
  * Le menu « ⋯ » d'une ligne : renommer, recolorer, supprimer. Il se ferme au
  * clic à l'extérieur, à Échap, et rend le focus au bouton qui l'a ouvert.
  */
-export function RowMenu({ label, onRename, onDelete, color, lock, onPrint }: RowMenuProps) {
+export function RowMenu({
+  label,
+  onRename,
+  onDelete,
+  color,
+  lock,
+  onPrint,
+  onMove,
+}: RowMenuProps) {
   const [open, setOpen] = useState(false)
   const wrapper = useRef<HTMLDivElement>(null)
   const button = useRef<HTMLButtonElement>(null)
@@ -81,6 +92,12 @@ export function RowMenu({ label, onRename, onDelete, color, lock, onPrint }: Row
           <MenuItem icon={<IconPencil />} onClick={run(onRename)}>
             Renommer
           </MenuItem>
+
+          {onMove && (
+            <MenuItem icon={<IconArrow />} onClick={run(onMove)}>
+              Déplacer vers…
+            </MenuItem>
+          )}
 
           {onPrint && (
             <MenuItem icon={<IconPrinter />} onClick={run(onPrint)}>

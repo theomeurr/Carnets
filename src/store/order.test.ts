@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { lockOfPage, lockOfPageIn } from '../lib/locks'
 import { merge } from '../sync/merge'
 import type { FolioState, Notebook, Page, Section } from '../types'
 import { appendOrder, byOrder, MIN_GAP, moveWithin, ORDER_STEP, orderOf } from './order'
@@ -273,5 +274,76 @@ describe('réorganisation dans le classeur', () => {
       'p1',
       'p2',
     ])
+  })
+})
+
+describe('changer une page de section', () => {
+  const avecVerrou = (scope: 'section' | 'page', id: string): FolioState => ({
+    ...classeur(),
+    locks: [
+      {
+        id,
+        scope,
+        salt: 'sel',
+        iterations: 600_000,
+        verifier: 'témoin',
+        createdAt: T,
+        updatedAt: T,
+      },
+    ],
+  })
+
+  it('déplace la page et la fait suivre à l’écran', () => {
+    const après = reducer(classeur(), {
+      type: 'page/move',
+      id: 'p1',
+      sectionId: 's2',
+      order: T + 99,
+      now: T + 9,
+    })
+    expect(après.pages.find((p) => p.id === 'p1')!.sectionId).toBe('s2')
+    expect(après.pages.filter((p) => p.sectionId === 's1').map((p) => p.id)).toEqual(['p2', 'p3'])
+    // La page ouverte suit, sinon elle disparaîtrait sans qu'on sache où.
+    expect(après.selection).toMatchObject({ sectionId: 's2', pageId: 'p1' })
+  })
+
+  it('ne réécrit que la page déplacée', () => {
+    const après = reducer(classeur(), {
+      type: 'page/move',
+      id: 'p1',
+      sectionId: 's2',
+      order: T + 99,
+      now: T + 9,
+    })
+    expect(après.pages.filter((p) => p.updatedAt === T + 9).map((p) => p.id)).toEqual(['p1'])
+  })
+
+  it('ignore une section inconnue ou un aller-retour sur place', () => {
+    const avant = classeur()
+    const args = { type: 'page/move', order: T, now: T + 9 } as const
+    expect(reducer(avant, { ...args, id: 'p1', sectionId: 'inconnue' })).toBe(avant)
+    expect(reducer(avant, { ...args, id: 'p1', sectionId: 's1' })).toBe(avant)
+    expect(reducer(avant, { ...args, id: 'zzz', sectionId: 's2' })).toBe(avant)
+  })
+
+  /*
+   * Le garde-fou qui compte. Le contenu d'une page protégée est chiffré avec
+   * la clé du verrou qui la couvre : la faire passer sous un autre la rendrait
+   * illisible pour toujours.
+   */
+  it('sait quel verrou couvrirait la page ailleurs', () => {
+    const état = avecVerrou('section', 's2')
+    const page = état.pages.find((p) => p.id === 'p1')!
+    // Chez elle, aucun verrou ; dans s2, celui de la section.
+    expect(lockOfPage(état, page)).toBeUndefined()
+    expect(lockOfPageIn(état, page, 's2')?.id).toBe('s2')
+  })
+
+  it('un verrou posé sur la page la suit partout', () => {
+    const état = avecVerrou('page', 'p1')
+    const page = état.pages.find((p) => p.id === 'p1')!
+    // Le verrou propre à la page l'emporte : le déplacement ne change rien.
+    expect(lockOfPage(état, page)?.id).toBe('p1')
+    expect(lockOfPageIn(état, page, 's2')?.id).toBe('p1')
   })
 })

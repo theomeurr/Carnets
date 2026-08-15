@@ -26,6 +26,8 @@ export type Action =
   /** Écriture d'une page sous verrou : seul le chiffré change. */
   | { type: 'page/sealed'; id: Id; cipher: string; now: number }
   | { type: 'page/remove'; id: Id; now: number }
+  /** Fait passer une page dans une autre section, à la fin de celle-ci. */
+  | { type: 'page/move'; id: Id; sectionId: Id; order: number; now: number }
   /** Remet en place ce qui sortait de la corbeille, daté de `now`. */
   | { type: 'trash/restore'; items: TrashedItem[]; now: number }
   /**
@@ -226,6 +228,35 @@ export function reducer(state: FolioState, action: Action): FolioState {
         pages: state.pages.filter((p) => p.id !== action.id),
         tombstones: bury(state.tombstones, action.now, [['page', action.id]]),
       })
+
+    /*
+     * Changer de section. Le rang est calculé par l'appelant, qui a la fratrie
+     * d'arrivée sous la main — et qui a surtout vérifié que le verrou couvrant
+     * la page ne change pas.
+     */
+    case 'page/move': {
+      const page = state.pages.find((p) => p.id === action.id)
+      if (!page || page.sectionId === action.sectionId) return state
+      const section = state.sections.find((s) => s.id === action.sectionId)
+      if (!section) return state
+      return settle({
+        ...state,
+        pages: state.pages
+          .map((p) =>
+            p.id === action.id
+              ? { ...p, sectionId: action.sectionId, order: action.order, updatedAt: action.now }
+              : p,
+          )
+          .sort(byOrder),
+        // La page suit son déplacement : sans cela elle disparaîtrait de la
+        // colonne sans qu'on sache où elle a atterri.
+        selection: {
+          notebookId: section.notebookId,
+          sectionId: action.sectionId,
+          pageId: action.id,
+        },
+      })
+    }
 
     case 'lock/add':
       return settle({
