@@ -20,8 +20,16 @@ export function EditorToolbar({
   /** Fourni quand la page a plusieurs cadres à ranger. */
   onAlign?: () => void
 }) {
-  return editor ? (
-    <ActiveToolbar editor={editor} onAlign={onAlign} />
+  /*
+   * Un éditeur détruit est traité comme absent. Le cas arrive : ouvrir un
+   * cadre puis cliquer ailleurs efface le premier s'il est resté vide, et son
+   * éditeur disparaît alors que la barre le tient encore. L'interroger le
+   * faisait planter — donc écran noir, l'application entière démontée.
+   */
+  const live = editor && !editor.isDestroyed ? editor : null
+
+  return live ? (
+    <ActiveToolbar editor={live} onAlign={onAlign} />
   ) : (
     <div className="toolbar" role="toolbar" aria-label="Mise en forme">
       <span className="toolbar__hint">Cliquez où vous voulez écrire.</span>
@@ -47,32 +55,19 @@ function AlignTool({ onAlign }: { onAlign: () => void }) {
 function ActiveToolbar({ editor, onAlign }: { editor: Editor; onAlign?: () => void }) {
   const [linkOpen, setLinkOpen] = useState(false)
 
-  // Un seul abonnement à l'éditeur : le composant ne se redessine que lorsque
-  // l'un de ces drapeaux change, pas à chaque frappe.
+  /*
+   * Un seul abonnement à l'éditeur : le composant ne se redessine que lorsque
+   * l'un de ces drapeaux change, pas à chaque frappe.
+   *
+   * Le sélecteur se garde d'un éditeur détruit, et cette précaution est bien à
+   * *sa* place : il est appelé hors rendu, sur notification, donc après que le
+   * cadre a disparu et avant que le parent n'ait eu l'occasion de le remplacer.
+   * Interroger un éditeur mort emportait toute l'application — écran noir.
+   */
   const marks = useEditorState({
     editor,
-    selector: ({ editor: instance }) => ({
-      bold: instance.isActive('bold'),
-      italic: instance.isActive('italic'),
-      underline: instance.isActive('underline'),
-      strike: instance.isActive('strike'),
-      code: instance.isActive('code'),
-      bulletList: instance.isActive('bulletList'),
-      orderedList: instance.isActive('orderedList'),
-      taskList: instance.isActive('taskList'),
-      blockquote: instance.isActive('blockquote'),
-      codeBlock: instance.isActive('codeBlock'),
-      link: instance.isActive('link'),
-      block: instance.isActive('heading', { level: 1 })
-        ? 'h1'
-        : instance.isActive('heading', { level: 2 })
-          ? 'h2'
-          : instance.isActive('heading', { level: 3 })
-            ? 'h3'
-            : 'p',
-      canUndo: instance.can().undo(),
-      canRedo: instance.can().redo(),
-    }),
+    selector: ({ editor: instance }) =>
+      instance && !instance.isDestroyed ? read(instance) : IDLE,
   })
 
   const setBlock = (value: string) => {
@@ -220,6 +215,54 @@ function ActiveToolbar({ editor, onAlign }: { editor: Editor; onAlign?: () => vo
       )}
     </div>
   )
+}
+
+/** Ce que la barre lit dans l'éditeur pour se dessiner. */
+function read(instance: Editor) {
+  return {
+    bold: instance.isActive('bold'),
+    italic: instance.isActive('italic'),
+    underline: instance.isActive('underline'),
+    strike: instance.isActive('strike'),
+    code: instance.isActive('code'),
+    bulletList: instance.isActive('bulletList'),
+    orderedList: instance.isActive('orderedList'),
+    taskList: instance.isActive('taskList'),
+    blockquote: instance.isActive('blockquote'),
+    codeBlock: instance.isActive('codeBlock'),
+    link: instance.isActive('link'),
+    block: instance.isActive('heading', { level: 1 })
+      ? 'h1'
+      : instance.isActive('heading', { level: 2 })
+        ? 'h2'
+        : instance.isActive('heading', { level: 3 })
+          ? 'h3'
+          : 'p',
+    canUndo: instance.can().undo(),
+    canRedo: instance.can().redo(),
+  }
+}
+
+/**
+ * L'état d'un éditeur qu'on ne peut plus interroger. Constante, et non un
+ * objet neuf : `useEditorState` compare ce qu'on lui rend, et une nouvelle
+ * référence à chaque appel provoquerait un rendu sans fin.
+ */
+const IDLE: ReturnType<typeof read> = {
+  bold: false,
+  italic: false,
+  underline: false,
+  strike: false,
+  code: false,
+  bulletList: false,
+  orderedList: false,
+  taskList: false,
+  blockquote: false,
+  codeBlock: false,
+  link: false,
+  block: 'p',
+  canUndo: false,
+  canRedo: false,
 }
 
 function Tool({

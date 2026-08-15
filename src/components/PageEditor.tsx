@@ -212,6 +212,7 @@ function PageSurface({
             zones={zones}
             onChange={write}
             onActive={setActive}
+            onGone={(gone) => setActive((current) => (current === gone ? null : current))}
             stacked={stacked}
           />
         </div>

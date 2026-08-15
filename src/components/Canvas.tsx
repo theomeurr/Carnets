@@ -35,11 +35,13 @@ export interface CanvasProps {
   onChange: (zones: Zone[]) => void
   /** L'éditeur du cadre qui a le curseur : c'est lui que la barre d'outils vise. */
   onActive: (editor: Editor | null) => void
+  /** Prévient qu'un cadre s'en va, pour ne pas garder son éditeur détruit. */
+  onGone: (editor: Editor) => void
   /** Vrai sur téléphone : les cadres sont empilés et figés. */
   stacked: boolean
 }
 
-export function Canvas({ zones, onChange, onActive, stacked }: CanvasProps) {
+export function Canvas({ zones, onChange, onActive, onGone, stacked }: CanvasProps) {
   const surface = useRef<HTMLDivElement>(null)
   const heights = useRef(new Map<string, number>())
   const [handled, setHandled] = useState<{ id: string; kind: 'move' | 'size' } | null>(null)
@@ -154,6 +156,7 @@ export function Canvas({ zones, onChange, onActive, stacked }: CanvasProps) {
             )
           }
           onActive={onActive}
+          onGone={onGone}
           onLeave={() => prune(zone.id)}
           onGrab={grab(zone.id, 'move')}
           onResize={grab(zone.id, 'size')}
@@ -172,6 +175,7 @@ function ZoneEditor({
   onHeight,
   onHtml,
   onActive,
+  onGone,
   onLeave,
   onGrab,
   onResize,
@@ -184,6 +188,7 @@ function ZoneEditor({
   onHeight: (height: number) => void
   onHtml: (html: string) => void
   onActive: (editor: Editor | null) => void
+  onGone: (editor: Editor) => void
   onLeave: () => void
   onGrab: (event: ReactPointerEvent) => void
   onResize: (event: ReactPointerEvent) => void
@@ -229,6 +234,15 @@ function ZoneEditor({
       onLeave()
     },
   })
+
+  // Le cadre s'en va : on le signale pour que la barre d'outils cesse de
+  // viser un éditeur détruit.
+  const goneRef = useRef(onGone)
+  goneRef.current = onGone
+  useEffect(() => {
+    if (!editor) return
+    return () => goneRef.current(editor)
+  }, [editor])
 
   // Un cadre qui vient d'être ouvert prend le curseur, sinon le clic ne
   // servirait à rien : on écrit là où l'on a cliqué.

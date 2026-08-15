@@ -798,3 +798,44 @@ mark {
   font-size: 11.5px;
   font-style: italic;
 }
+
+/* ---------- Interruption ---------- */
+
+.guard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.guard__sheet {
+  width: min(420px, 100%);
+  text-align: left;
+}
+
+.guard__title {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.guard__lead {
+  margin: 0 0 18px;
+  color: var(--text-soft);
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+.guard__detail {
+  margin: 20px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-mute);
+  font-family: var(--mono);
+  font-size: 12px;
+  word-break: break-word;
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AccountPage } from './components/AccountPage'
+import { Guard } from './components/Guard'
 import { MobilePaneProvider } from './components/MobilePane'
 import { useMobilePane } from './components/paneContext'
 import { PageEditor } from './components/PageEditor'
@@ -14,11 +15,13 @@ import { useFolio } from './store/useFolio'
 
 export default function App() {
   return (
-    <FolioProvider>
-      <MobilePaneProvider>
-        <Workspace />
-      </MobilePaneProvider>
-    </FolioProvider>
+    <Guard>
+      <FolioProvider>
+        <MobilePaneProvider>
+          <Workspace />
+        </MobilePaneProvider>
+      </FolioProvider>
+    </Guard>
   )
 }
 
