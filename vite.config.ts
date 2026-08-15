@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
@@ -68,6 +68,15 @@ export default defineConfig({
       },
     }),
   ],
+
+  test: {
+    /*
+     * Un DOM pour les tests : la lecture des zones d'une page, comme
+     * l'extraction du texte, passe par `DOMParser`. Sans lui, ces chemins
+     * n'étaient pas vérifiables ailleurs que dans un navigateur.
+     */
+    environment: 'jsdom',
+  },
 
   build: {
     rollupOptions: {

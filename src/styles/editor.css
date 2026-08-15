@@ -425,3 +425,149 @@
   color: var(--text-soft);
   font-size: 12.5px;
 }
+
+/* ---------- La toile ---------- */
+
+/*
+ * Une page est une surface, pas une colonne : les cadres y sont posés en
+ * coordonnées absolues. Le conteneur garde une hauteur un peu plus grande que
+ * son contenu, pour qu'il reste toujours du vide où ouvrir un cadre.
+ */
+.canvas {
+  position: relative;
+  cursor: text;
+}
+
+.canvas.is-handling {
+  /* Pendant un déplacement, rien ne se surligne au passage. */
+  user-select: none;
+  cursor: grabbing;
+}
+
+.zone {
+  position: absolute;
+  border-radius: var(--radius-sm);
+  /* Le cadre ne se signale qu'au survol : au repos, on ne voit que le texte. */
+  outline: 1px solid transparent;
+  transition: outline-color 120ms ease;
+}
+
+.zone:hover,
+.zone:focus-within {
+  outline-color: var(--border);
+}
+
+.zone__content {
+  padding: 2px 4px;
+}
+
+/* La poignée : un bandeau discret au-dessus du cadre, saisi pour le déplacer. */
+.zone__grab {
+  position: absolute;
+  left: 0;
+  right: 14px;
+  top: -14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  opacity: 0;
+  cursor: grab;
+  transition: opacity 120ms ease;
+}
+
+.zone__grab > span {
+  width: 28px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--border-strong);
+}
+
+.zone:hover .zone__grab,
+.zone:focus-within .zone__grab,
+.zone__grab:focus-visible {
+  opacity: 1;
+}
+
+.zone__grab:active {
+  cursor: grabbing;
+}
+
+/* Le bord droit élargit le cadre. */
+.zone__resize {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  width: 10px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+.zone__resize::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 2px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--border-strong);
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity 120ms ease;
+}
+
+.zone:hover .zone__resize::after {
+  opacity: 1;
+}
+
+/*
+ * Sur petit écran, les cadres reprennent le fil : ils s'empilent dans l'ordre
+ * de lecture, à pleine largeur, et ne se déplacent plus.
+ */
+.canvas.is-stacked {
+  cursor: auto;
+}
+
+.canvas.is-stacked .zone {
+  position: static;
+  width: auto;
+  outline: none;
+}
+
+.canvas.is-stacked .zone + .zone {
+  margin-top: 1.1em;
+}
+
+.canvas.is-stacked .zone__content {
+  padding: 0;
+}
+
+/* Le repère quand aucun cadre n'a le curseur. */
+.toolbar__hint {
+  color: var(--text-mute);
+  font-size: 12.5px;
+}
+
+/* L'outil qui range la page entière se tient à l'écart des autres. */
+.toolbar__button.is-apart,
+.toolbar .is-apart {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-left: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
+.toolbar .is-apart:hover {
+  background: var(--hover);
+  color: var(--text);
+}

@@ -2,8 +2,49 @@ import { useEditorState, type Editor } from '@tiptap/react'
 import { useState, type ReactNode } from 'react'
 import { Modal } from './Modal'
 
-/** Barre d'outils de l'éditeur : mise en forme du bloc courant et des caractères. */
-export function EditorToolbar({ editor }: { editor: Editor }) {
+/**
+ * Barre d'outils de l'éditeur : mise en forme du cadre où se trouve le
+ * curseur. Tant qu'on n'a cliqué dans aucun cadre, il n'y a rien à mettre en
+ * forme — elle se montre alors éteinte plutôt que de disparaître, pour que la
+ * page ne saute pas de vingt pixels au premier clic.
+ *
+ * Les deux états sont deux composants, et non un retour anticipé : les
+ * abonnements à l'éditeur ne peuvent pas être posés sous condition.
+ */
+export function EditorToolbar({
+  editor,
+  onAlign,
+}: {
+  /** L'éditeur du cadre qui a le curseur ; nul tant qu'on n'a pas cliqué dedans. */
+  editor: Editor | null
+  /** Fourni quand la page a plusieurs cadres à ranger. */
+  onAlign?: () => void
+}) {
+  return editor ? (
+    <ActiveToolbar editor={editor} onAlign={onAlign} />
+  ) : (
+    <div className="toolbar" role="toolbar" aria-label="Mise en forme">
+      <span className="toolbar__hint">Cliquez où vous voulez écrire.</span>
+      {onAlign && <AlignTool onAlign={onAlign} />}
+    </div>
+  )
+}
+
+function AlignTool({ onAlign }: { onAlign: () => void }) {
+  return (
+    <Tool
+      label="Tout aligner"
+      onClick={onAlign}
+      // Le seul outil qui agit sur la page entière, et non sur un cadre : il
+      // se tient donc à l'écart, au bout de la barre.
+      className="toolbar__button is-apart"
+    >
+      <Glyph d="M4 5h16M4 10h10M4 15h16M4 20h10" />
+    </Tool>
+  )
+}
+
+function ActiveToolbar({ editor, onAlign }: { editor: Editor; onAlign?: () => void }) {
   const [linkOpen, setLinkOpen] = useState(false)
 
   // Un seul abonnement à l'éditeur : le composant ne se redessine que lorsque
@@ -163,6 +204,8 @@ export function EditorToolbar({ editor }: { editor: Editor }) {
         <Glyph d="m15 7 4 4-4 4M19 11h-9a5 5 0 0 0 0 10h3" />
       </Tool>
 
+      {onAlign && <AlignTool onAlign={onAlign} />}
+
       {linkOpen && (
         <LinkDialog
           initial={editor.getAttributes('link').href ?? ''}
@@ -185,6 +228,7 @@ function Tool({
   active,
   disabled,
   onClick,
+  className,
   children,
 }: {
   label: string
@@ -192,12 +236,13 @@ function Tool({
   active?: boolean
   disabled?: boolean
   onClick: () => void
+  className?: string
   children: ReactNode
 }) {
   return (
     <button
       type="button"
-      className={`toolbar__button ${active ? 'is-active' : ''}`}
+      className={`${className ?? 'toolbar__button'} ${active ? 'is-active' : ''}`}
       title={shortcut ? `${label} (${shortcut})` : label}
       aria-label={label}
       aria-pressed={active}

@@ -1,14 +1,13 @@
-import { TaskItem, TaskList } from '@tiptap/extension-list'
-import { Placeholder } from '@tiptap/extension-placeholder'
-import { EditorContent, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import { useCallback, useEffect, useRef } from 'react'
+import type { Editor } from '@tiptap/react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { colorOf } from '../lib/colors'
 import { lockOfPage } from '../lib/locks'
-import { formatDate } from '../lib/text'
+import { formatDate, htmlToText } from '../lib/text'
+import { alignZones, parseZones, serializeZones, type Zone } from '../lib/zones'
 import type { PageContent } from '../store/useVault'
 import { useFolio, useCurrentView } from '../store/useFolio'
 import type { Page } from '../types'
+import { Canvas } from './Canvas'
 import { EditorToolbar } from './EditorToolbar'
 import { IconPage, IconPlus } from './Icons'
 import { SealedPanel } from './SealedPanel'
@@ -79,10 +78,15 @@ function PageSurface({
 }) {
   const { renamePage, writePage, claimNewPageFocus } = useFolio()
   const titleRef = useRef<HTMLTextAreaElement>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
 
-  // Frappe en attente d'écriture : conservée avec son identifiant de page pour
-  // que le vidage tardif atterrisse toujours sur la bonne note.
-  const draft = useRef<{ id: string; html: string; text: string } | null>(null)
+  /*
+   * Cette surface est montée avec la page pour clé : l'instance appartient
+   * donc à une seule page, et un vidage tardif — y compris celui du démontage
+   * quand on change de note — écrit forcément sur la bonne.
+   */
+  const pageRef = useRef(page.id)
+  const dirty = useRef(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const writeRef = useRef(writePage)
   writeRef.current = writePage
@@ -92,61 +96,65 @@ function PageSurface({
       clearTimeout(timer.current)
       timer.current = null
     }
-    const pendingDraft = draft.current
-    if (!pendingDraft) return
-    draft.current = null
-    writeRef.current(pendingDraft.id, pendingDraft.html, pendingDraft.text)
+    if (!dirty.current) return
+    dirty.current = false
+    const html = serializeZones(zonesRef.current)
+    writeRef.current(pageRef.current, html, htmlToText(html))
   }, [])
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-        link: {
-          openOnClick: false,
-          autolink: true,
-          defaultProtocol: 'https',
-          HTMLAttributes: { rel: 'noopener noreferrer nofollow', target: '_blank' },
-        },
-      }),
-      TaskList,
-      // Imbriquées : une tâche peut en contenir d'autres, comme les listes à
-      // puces. Le rendu par défaut place la case dans un `<label>`, ce qui la
-      // rend cochable au doigt sans viser le carré lui-même.
-      TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: 'Commencez à écrire…' }),
-    ],
-    content: content.html,
-    editorProps: {
-      attributes: {
-        class: 'prose',
-        'aria-label': 'Contenu de la page',
-        spellcheck: 'true',
-      },
-      // Ctrl/⌘ + clic suit un lien ; un clic simple place le curseur pour
-      // pouvoir corriger le texte du lien.
-      handleClick(_view, _pos, event) {
-        if (!event.ctrlKey && !event.metaKey) return false
-        const anchor = (event.target as HTMLElement | null)?.closest('a')
-        const href = anchor?.getAttribute('href')
-        if (!href || !/^https?:/i.test(href)) return false
-        window.open(href, '_blank', 'noopener,noreferrer')
-        return true
-      },
-    },
-    onUpdate({ editor: instance }) {
-      draft.current = {
-        id: page.id,
-        html: instance.getHTML(),
-        text: instance.getText({ blockSeparator: ' ' }),
-      }
+  /*
+   * Les cadres de la page. Ils sont relus une fois, à l'ouverture : ensuite
+   * c'est cet état qui fait foi, et `content.html` n'est plus consulté — le
+   * relire à chaque frappe écraserait ce qu'on est en train d'écrire.
+   */
+  const [zones, setZones] = useState<Zone[]>(() => parseZones(content.html))
+  const [active, setActive] = useState<Editor | null>(null)
+  const zonesRef = useRef(zones)
+  zonesRef.current = zones
+
+  const heights = useRef(new Map<string, number>())
+
+  /*
+   * La mise en HTML n'a pas lieu à chaque frappe : elle attend la pause, avec
+   * l'écriture. Sérialiser puis relire tout le document pour en extraire le
+   * texte, lettre après lettre, se paierait sur les longues pages.
+   */
+  const write = useCallback(
+    (next: Zone[]) => {
+      setZones(next)
+      zonesRef.current = next
+      dirty.current = true
       if (timer.current) clearTimeout(timer.current)
       timer.current = setTimeout(flush, WRITE_DELAY_MS)
     },
-  })
+    [flush],
+  )
+
+  /*
+   * « Tout aligner » : les cadres sont empilés dans l'ordre de lecture, calés
+   * à gauche et à la même largeur. Les hauteurs viennent du rendu, mesurées
+   * ici — les deviner décalerait la pile.
+   */
+  const align = useCallback(() => {
+    const surface = sheetRef.current?.querySelector('.canvas')
+    const width = surface ? surface.getBoundingClientRect().width : 0
+    write(
+      alignZones(zonesRef.current, Math.max(240, width), (zone) => {
+        const element = surface?.querySelector(`[data-zone-id="${zone.id}"]`)
+        return element ? element.getBoundingClientRect().height : (heights.current.get(zone.id) ?? 60)
+      }),
+    )
+  }, [write])
 
   // Quitter la page (changement de sélection ou fermeture) écrit ce qui reste.
   useEffect(() => flush, [flush])
+
+  /*
+   * Sur petit écran les cadres sont empilés et figés : viser et faire glisser
+   * des cadres au doigt sur quatre centimètres de large n'est pas une façon
+   * d'écrire. Le contenu reste, la disposition est mise de côté.
+   */
+  const stacked = useNarrow()
 
   // Une page que l'on vient de créer reçoit le curseur dans son titre. Le droit
   // ne se réclame qu'une fois : ouvrir une page vide déjà existante, ou créer
@@ -176,10 +184,10 @@ function PageSurface({
 
   return (
     <section className="editor" aria-label="Éditeur" style={{ '--accent': accent } as React.CSSProperties}>
-      {editor && <EditorToolbar editor={editor} />}
+      <EditorToolbar editor={active} onAlign={zones.length > 1 && !stacked ? align : undefined} />
 
       <div className="editor__scroll">
-        <div className="editor__sheet">
+        <div className="editor__sheet" ref={sheetRef}>
           <p className="editor__breadcrumb">{breadcrumb}</p>
           <textarea
             ref={titleRef}
@@ -193,14 +201,19 @@ function PageSurface({
               // Entrée depuis le titre descend dans le corps de la page.
               if (event.key === 'Enter' || event.key === 'ArrowDown') {
                 event.preventDefault()
-                editor?.commands.focus('start')
+                active?.commands.focus('start')
               }
             }}
           />
           <p className="editor__meta">
             Modifié {formatDate(page.updatedAt)} · {countWords(content.text)}
           </p>
-          <EditorContent editor={editor} className="editor__content" />
+          <Canvas
+            zones={zones}
+            onChange={write}
+            onActive={setActive}
+            stacked={stacked}
+          />
         </div>
       </div>
     </section>
@@ -210,4 +223,23 @@ function PageSurface({
 function countWords(text: string): string {
   const words = text.trim() ? text.trim().split(/\s+/).length : 0
   return words === 0 ? 'page vide' : `${words} mot${words > 1 ? 's' : ''}`
+}
+
+/**
+ * Vrai sur les écrans où la toile ne tient pas. Le seuil est celui du reste de
+ * l'application, où une seule colonne est visible à la fois.
+ */
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(
+    () => typeof matchMedia === 'function' && matchMedia('(max-width: 820px)').matches,
+  )
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return
+    const query = matchMedia('(max-width: 820px)')
+    const update = () => setNarrow(query.matches)
+    update()
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
+  return narrow
 }

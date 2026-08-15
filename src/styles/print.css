@@ -103,6 +103,18 @@
     break-inside: avoid;
   }
 
+  /*
+   * Les cadres d'une toile reprennent le fil sur le papier. Reporter leurs
+   * coordonnées d'écran sur une feuille A4 donnerait des colonnes coupées et
+   * des blancs au milieu : on imprime dans l'ordre de lecture, ce qui est de
+   * toute façon l'ordre où le texte est déjà écrit dans le document.
+   */
+  .print-sheet__body [data-zone] {
+    display: block;
+    width: auto !important;
+    margin: 0 0 4mm;
+  }
+
   /* Les cases à cocher s'impriment cochées ou non, pas en gris uniforme. */
   .print-sheet__body input[type='checkbox'] {
     appearance: none;
