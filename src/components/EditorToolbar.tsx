@@ -14,11 +14,14 @@ import { Modal } from './Modal'
 export function EditorToolbar({
   editor,
   onAlign,
+  stacked,
 }: {
   /** L'éditeur du cadre qui a le curseur ; nul tant qu'on n'a pas cliqué dedans. */
   editor: Editor | null
   /** Fourni quand la page a plusieurs cadres à ranger. */
   onAlign?: () => void
+  /** Vrai sur téléphone, où les cadres sont empilés : le geste n'est pas le même. */
+  stacked?: boolean
 }) {
   /*
    * Un éditeur détruit est traité comme absent. Le cas arrive : ouvrir un
@@ -32,7 +35,14 @@ export function EditorToolbar({
     <ActiveToolbar editor={live} onAlign={onAlign} />
   ) : (
     <div className="toolbar" role="toolbar" aria-label="Mise en forme">
-      <span className="toolbar__hint">Cliquez où vous voulez écrire.</span>
+      {/*
+       * Sur téléphone les cadres sont empilés : on ne les pose pas où l'on
+       * veut, et promettre le contraire donnait un repère qui mentait — on
+       * touchait la page en suivant son conseil, sans que rien n'arrive.
+       */}
+      <span className="toolbar__hint">
+        {stacked ? 'Touchez la page pour écrire.' : 'Cliquez où vous voulez écrire.'}
+      </span>
       {onAlign && <AlignTool onAlign={onAlign} />}
     </div>
   )

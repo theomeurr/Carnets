@@ -4,8 +4,11 @@ import {
   ALIGN_GAP,
   alignZones,
   extent,
+  DEFAULT_WIDTH,
+  MIN_WIDTH,
   isBlank,
   parseZones,
+  placeAt,
   readingOrder,
   serializeZones,
   type Zone,
@@ -203,5 +206,54 @@ describe('largeur pleine', () => {
   it('donne la largeur par défaut à un cadre sans attribut', () => {
     const [z] = parseZones('<div data-zone="1"><p>x</p></div>')
     expect(z.w).toBe(360)
+  })
+})
+
+describe('poser un cadre d’un clic', () => {
+  const FEUILLE = 810
+
+  it('ouvre un cadre de largeur ordinaire quand la place ne manque pas', () => {
+    expect(placeAt(FEUILLE, 100, 250)).toEqual({ x: 100, y: 250, w: DEFAULT_WIDTH })
+  })
+
+  it('le rétrécit plutôt que de le laisser dépasser', () => {
+    const pose = placeAt(FEUILLE, 600, 0)
+    expect(pose.x + pose.w).toBeLessThanOrEqual(FEUILLE)
+    expect(pose.w).toBeLessThan(DEFAULT_WIDTH)
+  })
+
+  /*
+   * Près du bord droit, rétrécir ne suffit plus : le cadre deviendrait
+   * illisible. On le recule alors, et il ne sort toujours pas de la feuille —
+   * un cadre à cheval sur le bord n'était atteignable qu'en faisant défiler.
+   */
+  it('le recule quand le bord est trop proche pour qu’il reste lisible', () => {
+    const pose = placeAt(FEUILLE, 790, 40)
+    expect(pose.w).toBe(MIN_WIDTH)
+    expect(pose.x).toBe(FEUILLE - MIN_WIDTH)
+    expect(pose.x + pose.w).toBe(FEUILLE)
+  })
+
+  it('ne pose jamais un cadre hors de la feuille', () => {
+    for (const x of [-50, 0, 1, 405, 809, 810, 2000]) {
+      const pose = placeAt(FEUILLE, x, -10)
+      expect(pose.x).toBeGreaterThanOrEqual(0)
+      expect(pose.y).toBe(0)
+      expect(pose.w).toBeGreaterThanOrEqual(MIN_WIDTH)
+      expect(pose.x + pose.w).toBeLessThanOrEqual(FEUILLE)
+    }
+  })
+
+  /*
+   * Le dernier cadre au sens de la lecture est celui que le doigt rejoint en
+   * touchant le blanc, sur téléphone. Ce n'est pas le dernier créé.
+   */
+  it('le dernier cadre lu est le plus bas, pas le plus récent', () => {
+    const zones: Zone[] = [
+      { id: 'bas', x: 0, y: 600, w: 360, html: '<p>fin</p>' },
+      { id: 'haut', x: 0, y: 0, w: 360, html: '<p>début</p>' },
+    ]
+    const lus = readingOrder(zones)
+    expect(lus[lus.length - 1].id).toBe('bas')
   })
 })

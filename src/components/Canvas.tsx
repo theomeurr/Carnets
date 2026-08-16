@@ -11,11 +11,11 @@ import {
 } from 'react'
 import { newId } from '../lib/id'
 import {
-  DEFAULT_WIDTH,
   MIN_WIDTH,
   READING_WIDTH,
   extent,
   isBlank,
+  placeAt,
   readingOrder,
   type Zone,
 } from '../lib/zones'
@@ -52,6 +52,8 @@ export interface CanvasProps {
 export function Canvas({ zones, onChange, onActive, onGone, stacked }: CanvasProps) {
   const surface = useRef<HTMLDivElement>(null)
   const heights = useRef(new Map<string, number>())
+  /** Les éditeurs vivants, pour pouvoir rendre le curseur à l'un d'eux. */
+  const editors = useRef(new Map<string, Editor>())
   const [handled, setHandled] = useState<{ id: string; kind: 'move' | 'size' } | null>(null)
   /** Le cadre qui vient de naître : il réclame le curseur, une seule fois. */
   const [born, setBorn] = useState<string | null>(null)
@@ -63,25 +65,51 @@ export function Canvas({ zones, onChange, onActive, onGone, stacked }: CanvasPro
 
   const measure = useCallback((zone: Zone) => heights.current.get(zone.id) ?? 60, [])
 
-  /** Un clic dans le vide ouvre un cadre là où l'on a cliqué. */
+  /**
+   * Rend le curseur au dernier cadre, à la fin de son texte. C'est ce que fait
+   * le blanc sous un cahier empilé : on touche dessous, on continue d'écrire.
+   */
+  const resume = useCallback(() => {
+    const order = readingOrder(zonesRef.current)
+    const last = order[order.length - 1]
+    const editor = last && editors.current.get(last.id)
+    if (editor && !editor.isDestroyed) editor.commands.focus('end')
+  }, [])
+
+  /**
+   * Un clic dans le vide ouvre un cadre là où l'on a cliqué — ou, quand les
+   * cadres sont empilés, reprend le fil du dernier.
+   */
   const openAt = useCallback(
     (event: React.MouseEvent) => {
-      if (stacked) return
       // Un clic *dans* un cadre appartient à ce cadre.
       if ((event.target as HTMLElement).closest('.zone')) return
+
+      /*
+       * Empilés, les cadres ne se posent plus où l'on veut : la toile n'a plus
+       * de coordonnées. Le geste ne doit pas pour autant rester sans effet —
+       * toucher le blanc sous le texte ne faisait rien du tout, ce qui est la
+       * façon la plus sûre de croire que l'application est cassée.
+       */
+      if (stacked) {
+        event.preventDefault()
+        resume()
+        return
+      }
+
       const box = surface.current?.getBoundingClientRect()
       if (!box) return
 
-      const x = Math.max(0, event.clientX - box.left)
-      const y = Math.max(0, event.clientY - box.top)
-      // Le cadre ne doit pas naître en débordant à droite de la feuille.
-      const width = Math.max(MIN_WIDTH, Math.min(DEFAULT_WIDTH, box.width - x))
-      const born = { id: newId(), x, y, w: width, html: '' }
+      const born = {
+        id: newId(),
+        ...placeAt(box.width, event.clientX - box.left, event.clientY - box.top),
+        html: '',
+      }
       changeRef.current([...zonesRef.current, born])
       // Le curseur va dedans : cliquer puis écrire est le geste entier.
       setBorn(born.id)
     },
-    [stacked],
+    [resume, stacked],
   )
 
   /*
@@ -173,7 +201,11 @@ export function Canvas({ zones, onChange, onActive, onGone, stacked }: CanvasPro
             )
           }
           onActive={onActive}
-          onGone={onGone}
+          onReady={(instance) => editors.current.set(zone.id, instance)}
+          onGone={(instance) => {
+            editors.current.delete(zone.id)
+            onGone(instance)
+          }}
           onLeave={() => prune(zone.id)}
           onGrab={grab(zone.id, 'move')}
           onResize={grab(zone.id, 'size')}
@@ -192,6 +224,7 @@ function ZoneEditor({
   onHeight,
   onHtml,
   onActive,
+  onReady,
   onGone,
   onLeave,
   onGrab,
@@ -205,6 +238,7 @@ function ZoneEditor({
   onHeight: (height: number) => void
   onHtml: (html: string) => void
   onActive: (editor: Editor | null) => void
+  onReady: (editor: Editor) => void
   onGone: (editor: Editor) => void
   onLeave: () => void
   onGrab: (event: ReactPointerEvent) => void
@@ -252,12 +286,16 @@ function ZoneEditor({
     },
   })
 
-  // Le cadre s'en va : on le signale pour que la barre d'outils cesse de
+  // Le cadre s'annonce quand il est prêt, pour que la toile puisse lui rendre
+  // le curseur, et signale son départ pour que la barre d'outils cesse de
   // viser un éditeur détruit.
+  const readyRef = useRef(onReady)
+  readyRef.current = onReady
   const goneRef = useRef(onGone)
   goneRef.current = onGone
   useEffect(() => {
     if (!editor) return
+    readyRef.current(editor)
     return () => goneRef.current(editor)
   }, [editor])
 

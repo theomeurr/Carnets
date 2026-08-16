@@ -112,7 +112,16 @@
    * faut de la place pour poser des cadres côte à côte. Elle était limitée à
    * 760 px et centrée — il n'y avait alors littéralement pas d'endroit où
    * ouvrir un second cadre.
+   *
+   * Elle descend aussi jusqu'au bas de la fenêtre, et la toile prend ce qui
+   * reste : sans cela, une page d'une seule ligne laissait tout le blanc du
+   * dessous hors de la toile. Ce blanc n'appartenait à personne, et le
+   * toucher — le geste même que la barre d'outils propose — ne faisait rien.
    */
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-height: 100%;
   padding: 34px 44px 40px;
 }
 
@@ -456,10 +465,28 @@
   /*
    * Elle descend sous son contenu, et jamais moins bas que l'écran : le vide
    * du bas de page doit appartenir à la toile pour qu'un clic y ouvre un
-   * cadre.
+   * cadre. `flex: 1` lui donne en plus tout le blanc restant de la feuille.
    */
+  flex: 1;
   min-height: max(var(--canvas-min, 0px), 70vh);
   cursor: text;
+}
+
+/*
+ * Un cadre est invisible au repos, et c'est ce qu'on veut en lisant. Mais dès
+ * qu'on promène le curseur sur la toile pour poser un cadre, il faut voir où
+ * s'arrêtent ceux qui sont déjà là : sinon on vise un blanc qui appartient au
+ * paragraphe voisin, le curseur atterrit dedans, et l'on croit que cliquer
+ * pour écrire ne marche pas.
+ */
+.canvas:hover .zone {
+  outline-color: var(--border);
+  outline-style: dashed;
+}
+
+.canvas .zone:hover,
+.canvas .zone:focus-within {
+  outline-style: solid;
 }
 
 .canvas.is-handling {

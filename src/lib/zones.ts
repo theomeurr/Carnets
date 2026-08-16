@@ -133,6 +133,23 @@ export function alignZones(
   })
 }
 
+/**
+ * Où poser un cadre ouvert d'un clic, sur une feuille large de `surface`.
+ *
+ * Il ne doit pas déborder à droite : quand la place manque, on le recule
+ * plutôt que de le laisser dépasser du papier. Et il ne descend jamais sous
+ * la largeur minimale, sans quoi un clic près du bord ouvrirait un cadre où
+ * l'on ne pourrait rien lire.
+ */
+export function placeAt(surface: number, x: number, y: number) {
+  const left = Math.min(Math.max(0, x), Math.max(0, surface - MIN_WIDTH))
+  return {
+    x: left,
+    y: Math.max(0, y),
+    w: Math.max(MIN_WIDTH, Math.min(DEFAULT_WIDTH, surface - left)),
+  }
+}
+
 /** Un cadre sans rien à lire : l'éditeur en laisse quand on clique sans écrire. */
 export function isBlank(zone: Zone): boolean {
   return zone.html.replace(/<[^>]*>/g, '').replace(/\s|&nbsp;/g, '') === ''

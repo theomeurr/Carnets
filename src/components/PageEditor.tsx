@@ -185,7 +185,11 @@ function PageSurface({
 
   return (
     <section className="editor" aria-label="Éditeur" style={{ '--accent': accent } as React.CSSProperties}>
-      <EditorToolbar editor={active} onAlign={zones.length > 1 && !stacked ? align : undefined} />
+      <EditorToolbar
+        editor={active}
+        onAlign={zones.length > 1 && !stacked ? align : undefined}
+        stacked={stacked}
+      />
 
       <div className="editor__scroll">
         <div className="editor__sheet" ref={sheetRef}>
