@@ -327,7 +327,20 @@ function ZoneEditor({
       // Largeur nulle : le cadre prend la largeur de lecture. Il couvrait
       // auparavant la feuille entière, ce qui ne laissait aucun endroit où
       // cliquer pour en ouvrir un second.
-      style={stacked ? undefined : { left: zone.x, top: zone.y, width: zone.w || READING_WIDTH }}
+      //
+      // La largeur maximale le retient dans la feuille : sur une fenêtre
+      // étroite, un cadre de 360 px posé sur une toile de 312 en sortait, et
+      // sa partie droite n'était plus atteignable.
+      style={
+        stacked
+          ? undefined
+          : {
+              left: zone.x,
+              top: zone.y,
+              width: zone.w || READING_WIDTH,
+              maxWidth: `calc(100% - ${Math.max(0, Math.round(zone.x))}px)`,
+            }
+      }
     >
       {!stacked && (
         <>

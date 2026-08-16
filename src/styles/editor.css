@@ -508,7 +508,18 @@
   outline-color: var(--border);
 }
 
+/*
+ * Le rembourrage est porté par le texte lui-même, et non par l'enveloppe du
+ * cadre. Sur l'enveloppe, il formait une bordure de quelques pixels qui n'était
+ * pas éditable : un clic qui tombait dessus — le bord haut d'un cadre, sa marge
+ * gauche — ne posait aucun curseur, et ce qu'on tapait ensuite se perdait sans
+ * un mot. Tout l'intérieur du cadre appartient maintenant à l'éditeur.
+ */
 .zone__content {
+  padding: 0;
+}
+
+.zone__content > .ProseMirror {
   padding: 2px 4px;
 }
 
@@ -592,7 +603,8 @@
   margin-top: 1.1em;
 }
 
-.canvas.is-stacked .zone__content {
+/* Empilés, les cadres reprennent le fil du texte : pas de retrait. */
+.canvas.is-stacked .zone__content > .ProseMirror {
   padding: 0;
 }
 
