@@ -195,13 +195,26 @@ export function useReorder(
         else nodes.current.delete(id)
       },
       onPointerDown: (event: ReactPointerEvent) => {
+        if (event.button !== 0) return
+
+        /*
+         * Une poignée dédiée court-circuite les deux précautions ci-dessous :
+         * elle est elle-même un bouton, et elle ne sert qu'à cela. Elle arme
+         * donc le déplacement tout de suite, même au doigt — l'appui maintenu
+         * protège d'un défilement pris pour une prise, ce qui ne peut pas
+         * arriver sur une cible de la taille d'une poignée. C'est ce qui rend
+         * le geste utilisable sur un bloc de texte, dont le corps appartient
+         * à l'éditeur et ne peut pas servir de prise.
+         */
+        const handle = !!(event.target as HTMLElement).closest('[data-drag-handle]')
+
         // Le clic droit, et tout ce qui a sa propre action — le menu « ⋯ », le
         // champ de renommage, une case à cocher — gardent la main.
-        if (event.button !== 0) return
-        if ((event.target as HTMLElement).closest('button, input, textarea, a, select')) return
+        if (!handle && (event.target as HTMLElement).closest('button, input, textarea, a, select'))
+          return
         if (idsRef.current.length < 2) return
 
-        const touch = event.pointerType === 'touch' || event.pointerType === 'pen'
+        const touch = !handle && (event.pointerType === 'touch' || event.pointerType === 'pen')
         const others = idsRef.current.filter((candidate) => candidate !== id)
         const started: Session = {
           id,
@@ -220,6 +233,10 @@ export function useReorder(
             // Une vibration brève dit que la ligne est prise, comme ailleurs.
             navigator.vibrate?.(12)
           }, LONG_PRESS_MS)
+        }
+        if (handle) {
+          started.armed = true
+          setDragging(id)
         }
         session.current = started
         event.currentTarget.setPointerCapture?.(event.pointerId)

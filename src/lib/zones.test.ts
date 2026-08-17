@@ -1,14 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { htmlToText } from './text'
 import {
-  ALIGN_GAP,
-  alignZones,
-  extent,
-  DEFAULT_WIDTH,
-  MIN_WIDTH,
+  FLOW_GAP,
+  ROW_TOLERANCE,
+  flow,
   isBlank,
   parseZones,
-  placeAt,
   readingOrder,
   serializeZones,
   type Zone,
@@ -52,9 +49,8 @@ describe('relire une page', () => {
     expect(z.w).toBeGreaterThanOrEqual(140)
   })
 
-  it('part sur un cadre de largeur ordinaire quand la page est vide', () => {
-    // Pleine largeur, on ne pourrait jamais poser un second cadre à côté.
-    expect(parseZones('')).toEqual([{ id: expect.any(String), x: 0, y: 0, w: 360, html: '' }])
+  it('part sur un bloc unique quand la page est vide', () => {
+    expect(parseZones('')).toEqual([{ id: expect.any(String), x: 0, y: 0, w: 0, html: '' }])
   })
 })
 
@@ -131,51 +127,6 @@ describe('ordre de lecture', () => {
   })
 })
 
-describe('tout aligner', () => {
-  const hauteurs: Record<string, number> = { a: 100, b: 60, c: 40 }
-  const heightOf = (z: Zone) => hauteurs[z.id] ?? 50
-
-  it('empile dans l’ordre de lecture, calé à gauche et à la même largeur', () => {
-    const zones = [
-      zone({ id: 'c', x: 500, y: 400 }),
-      zone({ id: 'a', x: 0, y: 0 }),
-      zone({ id: 'b', x: 380, y: 10 }),
-    ]
-    const alignés = alignZones(zones, 600, heightOf)
-    expect(alignés.map((z) => z.id)).toEqual(['a', 'b', 'c'])
-    expect(alignés.map((z) => z.x)).toEqual([0, 0, 0])
-    expect(alignés.map((z) => z.w)).toEqual([600, 600, 600])
-    // Chacun sous le précédent, séparés d'un espace constant.
-    expect(alignés.map((z) => z.y)).toEqual([0, 100 + ALIGN_GAP, 100 + ALIGN_GAP + 60 + ALIGN_GAP])
-  })
-
-  it('ne perd aucun cadre', () => {
-    const zones = [zone({ id: 'a' }), zone({ id: 'b', x: 400 }), zone({ id: 'c', y: 300 })]
-    expect(alignZones(zones, 600, heightOf)).toHaveLength(3)
-  })
-
-  it('supporte une hauteur nulle sans empiler deux cadres au même endroit', () => {
-    const zones = [zone({ id: 'x' }), zone({ id: 'y', y: 100 })]
-    const alignés = alignZones(zones, 600, () => 0)
-    expect(alignés[0].y).toBe(0)
-    expect(alignés[1].y).toBeGreaterThan(0)
-  })
-
-  it('est sans effet une seconde fois', () => {
-    const zones = [zone({ id: 'a' }), zone({ id: 'b', x: 400, y: 5 })]
-    const une = alignZones(zones, 600, heightOf)
-    const deux = alignZones(une, 600, heightOf)
-    expect(deux).toEqual(une)
-  })
-})
-
-describe('encombrement', () => {
-  it('mesure la place occupée par la toile', () => {
-    const zones = [zone({ x: 0, y: 0, w: 300 }), zone({ id: 'b', x: 400, y: 200, w: 250 })]
-    expect(extent(zones, () => 100)).toEqual({ width: 650, height: 300 })
-  })
-})
-
 describe('cadre vide', () => {
   it('reconnaît ce qui n’a rien à lire', () => {
     expect(isBlank(zone({ html: '' }))).toBe(true)
@@ -209,51 +160,67 @@ describe('largeur pleine', () => {
   })
 })
 
-describe('poser un cadre d’un clic', () => {
-  const FEUILLE = 810
+describe('empiler les blocs', () => {
+  const hauteurs: Record<string, number> = { a: 100, b: 60, c: 40 }
+  const heightOf = (z: Zone) => hauteurs[z.id] ?? 50
 
-  it('ouvre un cadre de largeur ordinaire quand la place ne manque pas', () => {
-    expect(placeAt(FEUILLE, 100, 250)).toEqual({ x: 100, y: 250, w: DEFAULT_WIDTH })
-  })
-
-  it('le rétrécit plutôt que de le laisser dépasser', () => {
-    const pose = placeAt(FEUILLE, 600, 0)
-    expect(pose.x + pose.w).toBeLessThanOrEqual(FEUILLE)
-    expect(pose.w).toBeLessThan(DEFAULT_WIDTH)
-  })
-
-  /*
-   * Près du bord droit, rétrécir ne suffit plus : le cadre deviendrait
-   * illisible. On le recule alors, et il ne sort toujours pas de la feuille —
-   * un cadre à cheval sur le bord n'était atteignable qu'en faisant défiler.
-   */
-  it('le recule quand le bord est trop proche pour qu’il reste lisible', () => {
-    const pose = placeAt(FEUILLE, 790, 40)
-    expect(pose.w).toBe(MIN_WIDTH)
-    expect(pose.x).toBe(FEUILLE - MIN_WIDTH)
-    expect(pose.x + pose.w).toBe(FEUILLE)
-  })
-
-  it('ne pose jamais un cadre hors de la feuille', () => {
-    for (const x of [-50, 0, 1, 405, 809, 810, 2000]) {
-      const pose = placeAt(FEUILLE, x, -10)
-      expect(pose.x).toBeGreaterThanOrEqual(0)
-      expect(pose.y).toBe(0)
-      expect(pose.w).toBeGreaterThanOrEqual(MIN_WIDTH)
-      expect(pose.x + pose.w).toBeLessThanOrEqual(FEUILLE)
-    }
-  })
-
-  /*
-   * Le dernier cadre au sens de la lecture est celui que le doigt rejoint en
-   * touchant le blanc, sur téléphone. Ce n'est pas le dernier créé.
-   */
-  it('le dernier cadre lu est le plus bas, pas le plus récent', () => {
+  it('renumérote dans l’ordre du tableau, pas dans celui des coordonnées', () => {
+    /*
+     * Le contrôle qui compte pour la réorganisation : on vient de faire passer
+     * « c » en tête, ses coordonnées disent encore le contraire. C'est le
+     * tableau qui doit gagner.
+     */
     const zones: Zone[] = [
-      { id: 'bas', x: 0, y: 600, w: 360, html: '<p>fin</p>' },
-      { id: 'haut', x: 0, y: 0, w: 360, html: '<p>début</p>' },
+      zone({ id: 'c', y: 400 }),
+      zone({ id: 'a', y: 0 }),
+      zone({ id: 'b', y: 200 }),
     ]
-    const lus = readingOrder(zones)
-    expect(lus[lus.length - 1].id).toBe('bas')
+    expect(flow(zones, heightOf).map((z) => z.id)).toEqual(['c', 'a', 'b'])
+  })
+
+  it('cale tout à gauche, sur toute la largeur', () => {
+    const empilés = flow([zone({ id: 'a', x: 300, w: 200 }), zone({ id: 'b', x: 40, w: 90 })], heightOf)
+    expect(empilés.map((z) => z.x)).toEqual([0, 0])
+    expect(empilés.map((z) => z.w)).toEqual([0, 0])
+  })
+
+  it('descend d’un bloc à l’autre, sans jamais remonter', () => {
+    const empilés = flow([zone({ id: 'a' }), zone({ id: 'b' }), zone({ id: 'c' })], heightOf)
+    expect(empilés[0].y).toBe(0)
+    expect(empilés[1].y).toBe(100 + FLOW_GAP)
+    expect(empilés[2].y).toBe(100 + FLOW_GAP + 60 + FLOW_GAP)
+  })
+
+  /*
+   * Deux blocs trop rapprochés passeraient pour côte à côte, et l'ordre de
+   * lecture les départagerait alors par identifiant — l'ordre voulu serait
+   * perdu au rechargement. Le pas ne descend donc jamais sous la tolérance.
+   */
+  it('espace assez pour que l’ordre survive à la relecture, même vide', () => {
+    const empilés = flow([zone({ id: 'z' }), zone({ id: 'a' }), zone({ id: 'm' })], () => 0)
+    for (let i = 1; i < empilés.length; i += 1) {
+      expect(empilés[i].y - empilés[i - 1].y).toBeGreaterThan(ROW_TOLERANCE)
+    }
+    expect(readingOrder(empilés).map((z) => z.id)).toEqual(['z', 'a', 'm'])
+  })
+
+  it('survit à l’aller-retour par le HTML', () => {
+    const zones: Zone[] = [
+      zone({ id: 'trois', html: '<p>Trois</p>' }),
+      zone({ id: 'un', html: '<p>Un</p>' }),
+      zone({ id: 'deux', html: '<p>Deux</p>' }),
+    ]
+    const relu = parseZones(serializeZones(flow(zones, heightOf)))
+    expect(relu.map((z) => z.id)).toEqual(['trois', 'un', 'deux'])
+    expect(htmlToText(serializeZones(flow(zones, heightOf)))).toBe('Trois Un Deux')
+  })
+
+  it('est sans effet une seconde fois', () => {
+    const une = flow([zone({ id: 'a' }), zone({ id: 'b' })], heightOf)
+    expect(flow(une, heightOf)).toEqual(une)
+  })
+
+  it('ne perd aucun bloc', () => {
+    expect(flow([zone({ id: 'a' }), zone({ id: 'b' }), zone({ id: 'c' })], heightOf)).toHaveLength(3)
   })
 })

@@ -2,60 +2,41 @@ import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { newId } from '../lib/id'
-import {
-  MIN_WIDTH,
-  READING_WIDTH,
-  extent,
-  isBlank,
-  placeAt,
-  readingOrder,
-  type Zone,
-} from '../lib/zones'
+import { FULL_WIDTH, isBlank, type Zone } from '../lib/zones'
+import { IconPlus, IconTrash } from './Icons'
+import { useReorder } from './useReorder'
 
 /**
- * La toile d'une page : des cadres de texte posés où l'on veut, comme dans un
- * vrai cahier où l'on écrit dans un coin puis dans un autre.
+ * Les blocs d'une page : des morceaux de texte que l'on ajoute un à un, et que
+ * l'on réordonne ensuite.
  *
- * Un clic sur le vide ouvre un cadre à cet endroit. On déplace un cadre par sa
- * poignée, on l'élargit par son bord droit, et un cadre resté vide s'efface
- * dès qu'on le quitte — sans quoi le moindre clic manqué laisserait une trace.
+ * Ils s'empilent — ils ne se posent plus où l'on veut. Poser du texte à un
+ * endroit libre de la feuille demandait de viser un vide invisible, et le
+ * moindre pixel de trop mettait le curseur dans le bloc d'à côté sans rien
+ * dire. Un bouton qui ajoute un bloc et une poignée qui le déplace disent au
+ * contraire ce qu'ils font.
  *
- * **Sur petit écran, les cadres sont empilés** et ne se déplacent plus. Viser
- * et faire glisser des cadres au doigt sur quatre centimètres de large n'est
- * pas une façon d'écrire ; on garde donc le contenu, on abandonne la
- * disposition. Le classement se fait au clavier et à la souris, et se retrouve
- * ensuite sur le téléphone tel qu'il a été rangé.
+ * Le déplacement passe par `useReorder`, comme les bloc-notes et les pages :
+ * même geste à la souris, au doigt et au clavier, et un seul endroit à
+ * corriger. Le corps d'un bloc appartenant à l'éditeur, la prise est une
+ * poignée dédiée.
  */
-
-/** Marge sous le cadre le plus bas, pour qu'il reste de la place où cliquer. */
-const SPARE_HEIGHT = 320
 
 export interface CanvasProps {
   zones: Zone[]
   onChange: (zones: Zone[]) => void
-  /** L'éditeur du cadre qui a le curseur : c'est lui que la barre d'outils vise. */
+  /** L'éditeur du bloc qui a le curseur : c'est lui que la barre d'outils vise. */
   onActive: (editor: Editor | null) => void
-  /** Prévient qu'un cadre s'en va, pour ne pas garder son éditeur détruit. */
+  /** Prévient qu'un bloc s'en va, pour ne pas garder son éditeur détruit. */
   onGone: (editor: Editor) => void
-  /** Vrai sur téléphone : les cadres sont empilés et figés. */
-  stacked: boolean
 }
 
-export function Canvas({ zones, onChange, onActive, onGone, stacked }: CanvasProps) {
-  const surface = useRef<HTMLDivElement>(null)
-  const heights = useRef(new Map<string, number>())
+export function Canvas({ zones, onChange, onActive, onGone }: CanvasProps) {
   /** Les éditeurs vivants, pour pouvoir rendre le curseur à l'un d'eux. */
   const editors = useRef(new Map<string, Editor>())
-  const [handled, setHandled] = useState<{ id: string; kind: 'move' | 'size' } | null>(null)
-  /** Le cadre qui vient de naître : il réclame le curseur, une seule fois. */
+  /** Le bloc qui vient de naître : il réclame le curseur, une seule fois. */
   const [born, setBorn] = useState<string | null>(null)
 
   const zonesRef = useRef(zones)
@@ -63,188 +44,157 @@ export function Canvas({ zones, onChange, onActive, onGone, stacked }: CanvasPro
   const changeRef = useRef(onChange)
   changeRef.current = onChange
 
-  const measure = useCallback((zone: Zone) => heights.current.get(zone.id) ?? 60, [])
-
-  /**
-   * Rend le curseur au dernier cadre, à la fin de son texte. C'est ce que fait
-   * le blanc sous un cahier empilé : on touche dessous, on continue d'écrire.
-   */
-  const resume = useCallback(() => {
-    const order = readingOrder(zonesRef.current)
-    const last = order[order.length - 1]
-    const editor = last && editors.current.get(last.id)
+  /** Rend le curseur à un bloc, à la fin de son texte. */
+  const enter = useCallback((id: string | undefined) => {
+    const editor = id && editors.current.get(id)
     if (editor && !editor.isDestroyed) editor.commands.focus('end')
   }, [])
 
+  /** Ajoute un bloc à la fin, et y met le curseur : ajouter, c'est écrire. */
+  const append = useCallback(() => {
+    const fresh = { id: newId(), x: 0, y: 0, w: FULL_WIDTH, html: '' }
+    changeRef.current([...zonesRef.current, fresh])
+    setBorn(fresh.id)
+  }, [])
+
   /**
-   * Un clic dans le vide ouvre un cadre là où l'on a cliqué — ou, quand les
-   * cadres sont empilés, reprend le fil du dernier.
+   * Retire un bloc. Le dernier ne se retire pas : une page sans bloc n'aurait
+   * plus rien où écrire, et il faudrait un geste de plus pour la rouvrir.
    */
-  const openAt = useCallback(
-    (event: React.MouseEvent) => {
-      // Un clic *dans* un cadre appartient à ce cadre.
-      if ((event.target as HTMLElement).closest('.zone')) return
-
-      /*
-       * Empilés, les cadres ne se posent plus où l'on veut : la toile n'a plus
-       * de coordonnées. Le geste ne doit pas pour autant rester sans effet —
-       * toucher le blanc sous le texte ne faisait rien du tout, ce qui est la
-       * façon la plus sûre de croire que l'application est cassée.
-       */
-      if (stacked) {
-        event.preventDefault()
-        resume()
-        return
-      }
-
-      const box = surface.current?.getBoundingClientRect()
-      if (!box) return
-
-      const born = {
-        id: newId(),
-        ...placeAt(box.width, event.clientX - box.left, event.clientY - box.top),
-        html: '',
-      }
-      changeRef.current([...zonesRef.current, born])
-      // Le curseur va dedans : cliquer puis écrire est le geste entier.
-      setBorn(born.id)
+  const remove = useCallback(
+    (id: string) => {
+      const list = zonesRef.current
+      if (list.length < 2) return
+      const index = list.findIndex((zone) => zone.id === id)
+      changeRef.current(list.filter((zone) => zone.id !== id))
+      // Le curseur passe au bloc qui prend la place, sinon la barre d'outils
+      // viserait un éditeur qui n'existe plus.
+      enter((list[index + 1] ?? list[index - 1])?.id)
     },
-    [resume, stacked],
+    [enter],
   )
 
-  /*
-   * Déplacer ou élargir un cadre. Mêmes événements « pointer » que la
-   * réorganisation des listes, et pour la même raison : le glisser natif du
-   * HTML ne produit rien au doigt.
+  /**
+   * Déplace un bloc. `to` se compte dans la liste privée du bloc déplacé,
+   * comme partout ailleurs dans `useReorder`.
    */
-  const grab = useCallback(
-    (id: string, kind: 'move' | 'size') => (event: ReactPointerEvent) => {
-      if (stacked || event.button !== 0) return
-      event.preventDefault()
-      event.stopPropagation()
+  const move = useCallback((id: string, to: number) => {
+    const list = zonesRef.current
+    const moved = list.find((zone) => zone.id === id)
+    if (!moved) return
+    const others = list.filter((zone) => zone.id !== id)
+    const next = [...others.slice(0, to), moved, ...others.slice(to)]
+    // Reposer un bloc à sa place n'est pas une modification : l'écrire
+    // marquerait la page comme changée à chaque clic sur une poignée.
+    if (next.every((zone, index) => zone === list[index])) return
+    changeRef.current(next)
+  }, [])
 
-      const zone = zonesRef.current.find((candidate) => candidate.id === id)
-      const box = surface.current?.getBoundingClientRect()
-      if (!zone || !box) return
-
-      const startX = event.clientX
-      const startY = event.clientY
-      const origin = { x: zone.x, y: zone.y, w: zone.w }
-      setHandled({ id, kind })
-
-      const onMove = (move: PointerEvent) => {
-        const dx = move.clientX - startX
-        const dy = move.clientY - startY
-        changeRef.current(
-          zonesRef.current.map((candidate) =>
-            candidate.id !== id
-              ? candidate
-              : kind === 'move'
-                ? { ...candidate, x: Math.max(0, origin.x + dx), y: Math.max(0, origin.y + dy) }
-                : { ...candidate, w: Math.max(MIN_WIDTH, origin.w + dx) },
-          ),
-        )
-      }
-      const onUp = () => {
-        setHandled(null)
-        window.removeEventListener('pointermove', onMove)
-        window.removeEventListener('pointerup', onUp)
-        window.removeEventListener('pointercancel', onUp)
-      }
-      window.addEventListener('pointermove', onMove)
-      window.addEventListener('pointerup', onUp)
-      window.addEventListener('pointercancel', onUp)
-    },
-    [stacked],
+  const drag = useReorder(
+    zones.map((zone) => zone.id),
+    move,
   )
 
-  /** Un cadre quitté sans rien y écrire s'efface. */
+  /** Un bloc quitté sans rien y écrire s'efface. */
   const prune = useCallback((id: string) => {
     const zone = zonesRef.current.find((candidate) => candidate.id === id)
     if (!zone || !isBlank(zone) || zonesRef.current.length < 2) return
     changeRef.current(zonesRef.current.filter((candidate) => candidate.id !== id))
   }, [])
 
-  const size = extent(zones, measure)
-  const shown = stacked ? readingOrder(zones) : zones
+  /**
+   * Le blanc sous les blocs rend le curseur au dernier. C'est le geste du
+   * cahier : on touche sous le texte, on continue d'écrire. Sans lui, tout ce
+   * bas de page ne répondait à rien.
+   */
+  const resume = useCallback(
+    (event: React.MouseEvent) => {
+      if ((event.target as HTMLElement).closest('.block, button')) return
+      event.preventDefault()
+      enter(zonesRef.current[zonesRef.current.length - 1]?.id)
+    },
+    [enter],
+  )
 
   return (
-    <div
-      ref={surface}
-      className={`canvas ${stacked ? 'is-stacked' : ''} ${handled ? 'is-handling' : ''}`}
-      /*
-       * La toile descend sous son contenu, et jamais moins bas que l'écran :
-       * sans cela, le vide en bas de page n'appartenait à personne et les
-       * clics qui y tombaient ne créaient rien.
-       */
-      style={
-        stacked
-          ? undefined
-          : ({ '--canvas-min': `${size.height + SPARE_HEIGHT}px` } as React.CSSProperties)
-      }
-      onMouseDown={openAt}
-    >
-      {shown.map((zone, index) => (
-        <ZoneEditor
-          key={zone.id}
-          zone={zone}
-          stacked={stacked}
-          placeholder={index === 0}
-          claimFocus={born === zone.id}
-          onFocused={() => setBorn(null)}
-          onHeight={(height) => heights.current.set(zone.id, height)}
-          onHtml={(html) =>
-            changeRef.current(
-              zonesRef.current.map((candidate) =>
-                candidate.id === zone.id ? { ...candidate, html } : candidate,
-              ),
-            )
-          }
-          onActive={onActive}
-          onReady={(instance) => editors.current.set(zone.id, instance)}
-          onGone={(instance) => {
-            editors.current.delete(zone.id)
-            onGone(instance)
-          }}
-          onLeave={() => prune(zone.id)}
-          onGrab={grab(zone.id, 'move')}
-          onResize={grab(zone.id, 'size')}
-        />
-      ))}
+    <div className={`canvas ${drag.dragging ? 'is-handling' : ''}`} onMouseDown={resume}>
+      {zones.map((zone, index) => {
+        const { ref, onPointerDown, onKeyDown } = drag.itemProps(zone.id)
+        const side = drag.dropSide(zone.id)
+        return (
+          <BlockEditor
+            key={zone.id}
+            zone={zone}
+            first={index === 0}
+            alone={zones.length < 2}
+            className={`${drag.dragging === zone.id ? 'is-dragging' : ''} ${side ? `is-drop-${side}` : ''}`}
+            hold={ref}
+            onGrab={onPointerDown}
+            onKeys={onKeyDown}
+            claimFocus={born === zone.id}
+            onFocused={() => setBorn(null)}
+            onHtml={(html) =>
+              changeRef.current(
+                zonesRef.current.map((candidate) =>
+                  candidate.id === zone.id ? { ...candidate, html } : candidate,
+                ),
+              )
+            }
+            onActive={onActive}
+            onReady={(instance) => editors.current.set(zone.id, instance)}
+            onGone={(instance) => {
+              editors.current.delete(zone.id)
+              onGone(instance)
+            }}
+            onLeave={() => prune(zone.id)}
+            onRemove={() => remove(zone.id)}
+          />
+        )
+      })}
+
+      <button type="button" className="canvas__add" onClick={append}>
+        <IconPlus />
+        Nouveau bloc
+      </button>
     </div>
   )
 }
 
-function ZoneEditor({
+function BlockEditor({
   zone,
-  stacked,
-  placeholder,
+  first,
+  alone,
+  className,
+  hold,
+  onGrab,
+  onKeys,
   claimFocus,
   onFocused,
-  onHeight,
   onHtml,
   onActive,
   onReady,
   onGone,
   onLeave,
-  onGrab,
-  onResize,
+  onRemove,
 }: {
   zone: Zone
-  stacked: boolean
-  placeholder: boolean
+  /** Seul le premier bloc porte l'invite : la répéter ferait un mur de gris. */
+  first: boolean
+  /** Un bloc seul ne se supprime pas : la page n'aurait plus où écrire. */
+  alone: boolean
+  className: string
+  hold: (element: HTMLElement | null) => void
+  onGrab: (event: ReactPointerEvent) => void
+  onKeys: (event: ReactKeyboardEvent) => void
   claimFocus: boolean
   onFocused: () => void
-  onHeight: (height: number) => void
   onHtml: (html: string) => void
   onActive: (editor: Editor | null) => void
   onReady: (editor: Editor) => void
   onGone: (editor: Editor) => void
   onLeave: () => void
-  onGrab: (event: ReactPointerEvent) => void
-  onResize: (event: ReactPointerEvent) => void
+  onRemove: () => void
 }) {
-  const box = useRef<HTMLDivElement>(null)
   const htmlRef = useRef(onHtml)
   htmlRef.current = onHtml
 
@@ -261,11 +211,11 @@ function ZoneEditor({
       }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      ...(placeholder ? [Placeholder.configure({ placeholder: 'Commencez à écrire…' })] : []),
+      ...(first ? [Placeholder.configure({ placeholder: 'Commencez à écrire…' })] : []),
     ],
     content: zone.html,
     editorProps: {
-      attributes: { class: 'prose', 'aria-label': 'Contenu du cadre', spellcheck: 'true' },
+      attributes: { class: 'prose', 'aria-label': 'Contenu du bloc', spellcheck: 'true' },
       handleClick(_view, _pos, event) {
         if (!event.ctrlKey && !event.metaKey) return false
         const anchor = (event.target as HTMLElement | null)?.closest('a')
@@ -286,9 +236,9 @@ function ZoneEditor({
     },
   })
 
-  // Le cadre s'annonce quand il est prêt, pour que la toile puisse lui rendre
-  // le curseur, et signale son départ pour que la barre d'outils cesse de
-  // viser un éditeur détruit.
+  // Le bloc s'annonce quand il est prêt, pour qu'on puisse lui rendre le
+  // curseur, et signale son départ pour que la barre d'outils cesse de viser
+  // un éditeur détruit.
   const readyRef = useRef(onReady)
   readyRef.current = onReady
   const goneRef = useRef(onGone)
@@ -299,69 +249,61 @@ function ZoneEditor({
     return () => goneRef.current(editor)
   }, [editor])
 
-  // Un cadre qui vient d'être ouvert prend le curseur, sinon le clic ne
-  // servirait à rien : on écrit là où l'on a cliqué.
+  // Un bloc qu'on vient d'ajouter prend le curseur : ajouter puis écrire est
+  // le geste entier.
   useEffect(() => {
     if (!claimFocus || !editor) return
     editor.commands.focus('end')
     onFocused()
   }, [claimFocus, editor, onFocused])
 
-  // La hauteur rendue sert à dimensionner la feuille et à aligner les cadres :
-  // elle se mesure, elle ne se devine pas.
-  useEffect(() => {
-    const element = box.current
-    if (!element) return
-    const report = () => onHeight(element.getBoundingClientRect().height)
-    report()
-    const observer = new ResizeObserver(report)
-    observer.observe(element)
-    return () => observer.disconnect()
-  })
-
   return (
     <div
-      ref={box}
-      className="zone"
+      ref={hold}
+      className={`block ${className}`}
       data-zone-id={zone.id}
-      // Largeur nulle : le cadre prend la largeur de lecture. Il couvrait
-      // auparavant la feuille entière, ce qui ne laissait aucun endroit où
-      // cliquer pour en ouvrir un second.
-      //
-      // La largeur maximale le retient dans la feuille : sur une fenêtre
-      // étroite, un cadre de 360 px posé sur une toile de 312 en sortait, et
-      // sa partie droite n'était plus atteignable.
-      style={
-        stacked
-          ? undefined
-          : {
-              left: zone.x,
-              top: zone.y,
-              width: zone.w || READING_WIDTH,
-              maxWidth: `calc(100% - ${Math.max(0, Math.round(zone.x))}px)`,
-            }
-      }
+      // Les touches sont écoutées sur le bloc entier : Alt + flèche déplace
+      // alors le bloc sans qu'on ait à quitter le texte qu'on écrit.
+      onKeyDown={onKeys}
     >
-      {!stacked && (
-        <>
+      <div className="block__gutter">
+        <button
+          type="button"
+          className="block__grab"
+          data-drag-handle
+          aria-label="Déplacer ce bloc"
+          title="Déplacer ce bloc (ou Alt + flèches)"
+          onPointerDown={onGrab}
+        >
+          <Grip />
+        </button>
+        {!alone && (
           <button
             type="button"
-            className="zone__grab"
-            aria-label="Déplacer ce cadre"
-            title="Déplacer ce cadre"
-            onPointerDown={onGrab}
+            className="block__remove"
+            aria-label="Supprimer ce bloc"
+            title="Supprimer ce bloc"
+            onClick={onRemove}
           >
-            <span aria-hidden="true" />
+            <IconTrash />
           </button>
-          <span
-            className="zone__resize"
-            role="presentation"
-            aria-hidden="true"
-            onPointerDown={onResize}
-          />
-        </>
-      )}
-      <EditorContent editor={editor} className="zone__content" />
+        )}
+      </div>
+      <EditorContent editor={editor} className="block__content" />
     </div>
+  )
+}
+
+/** Les six points d'une poignée, le dessin usuel de « ceci se saisit ». */
+function Grip() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor">
+      {[4, 8, 12].map((y) => (
+        <g key={y}>
+          <circle cx="6" cy={y} r="1.4" />
+          <circle cx="10" cy={y} r="1.4" />
+        </g>
+      ))}
+    </svg>
   )
 }

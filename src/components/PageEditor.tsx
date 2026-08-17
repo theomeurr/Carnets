@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { colorOf } from '../lib/colors'
 import { lockOfPage } from '../lib/locks'
 import { formatDate, htmlToText } from '../lib/text'
-import { alignZones, parseZones, serializeZones, type Zone } from '../lib/zones'
+import { flow, parseZones, readingOrder, serializeZones, type Zone } from '../lib/zones'
 import type { PageContent } from '../store/useVault'
 import { useFolio, useCurrentView } from '../store/useFolio'
 import type { Page } from '../types'
@@ -92,6 +92,16 @@ function PageSurface({
   const writeRef = useRef(writePage)
   writeRef.current = writePage
 
+  /**
+   * La hauteur rendue d'un bloc. Elle ne sert qu'à écrire des ordonnées
+   * vraisemblables dans le HTML enregistré : l'ordre à l'écran, lui, est celui
+   * du tableau.
+   */
+  const heightOf = useCallback((zone: Zone) => {
+    const element = sheetRef.current?.querySelector(`[data-zone-id="${zone.id}"]`)
+    return element ? element.getBoundingClientRect().height : 60
+  }, [])
+
   const flush = useCallback(() => {
     if (timer.current) {
       clearTimeout(timer.current)
@@ -99,21 +109,25 @@ function PageSurface({
     }
     if (!dirty.current) return
     dirty.current = false
-    const html = serializeZones(zonesRef.current)
+    // Les blocs sont renumérotés en pile avant d'être écrits, dans l'ordre du
+    // tableau : sans cela, le relire les remettrait dans leur ordre d'avant.
+    const html = serializeZones(flow(zonesRef.current, heightOf))
     writeRef.current(pageRef.current, html, htmlToText(html))
-  }, [])
+  }, [heightOf])
 
   /*
-   * Les cadres de la page. Ils sont relus une fois, à l'ouverture : ensuite
+   * Les blocs de la page. Ils sont relus une fois, à l'ouverture : ensuite
    * c'est cet état qui fait foi, et `content.html` n'est plus consulté — le
    * relire à chaque frappe écraserait ce qu'on est en train d'écrire.
+   *
+   * L'ordre de lecture est établi ici, une bonne fois : une page enregistrée
+   * quand les blocs se posaient encore côte à côte arrive avec des
+   * coordonnées, et c'est le seul moment où elles servent encore.
    */
-  const [zones, setZones] = useState<Zone[]>(() => parseZones(content.html))
+  const [zones, setZones] = useState<Zone[]>(() => readingOrder(parseZones(content.html)))
   const [active, setActive] = useState<Editor | null>(null)
   const zonesRef = useRef(zones)
   zonesRef.current = zones
-
-  const heights = useRef(new Map<string, number>())
 
   /*
    * La mise en HTML n'a pas lieu à chaque frappe : elle attend la pause, avec
@@ -131,30 +145,10 @@ function PageSurface({
     [flush],
   )
 
-  /*
-   * « Tout aligner » : les cadres sont empilés dans l'ordre de lecture, calés
-   * à gauche et à la même largeur. Les hauteurs viennent du rendu, mesurées
-   * ici — les deviner décalerait la pile.
-   */
-  const align = useCallback(() => {
-    const surface = sheetRef.current?.querySelector('.canvas')
-    const width = surface ? surface.getBoundingClientRect().width : 0
-    write(
-      alignZones(zonesRef.current, Math.max(240, width), (zone) => {
-        const element = surface?.querySelector(`[data-zone-id="${zone.id}"]`)
-        return element ? element.getBoundingClientRect().height : (heights.current.get(zone.id) ?? 60)
-      }),
-    )
-  }, [write])
-
   // Quitter la page (changement de sélection ou fermeture) écrit ce qui reste.
   useEffect(() => flush, [flush])
 
-  /*
-   * Sur petit écran les cadres sont empilés et figés : viser et faire glisser
-   * des cadres au doigt sur quatre centimètres de large n'est pas une façon
-   * d'écrire. Le contenu reste, la disposition est mise de côté.
-   */
+  /** Le geste n'est pas le même au doigt : la barre d'outils le dit autrement. */
   const stacked = useNarrow()
 
   // Une page que l'on vient de créer reçoit le curseur dans son titre. Le droit
@@ -185,11 +179,7 @@ function PageSurface({
 
   return (
     <section className="editor" aria-label="Éditeur" style={{ '--accent': accent } as React.CSSProperties}>
-      <EditorToolbar
-        editor={active}
-        onAlign={zones.length > 1 && !stacked ? align : undefined}
-        stacked={stacked}
-      />
+      <EditorToolbar editor={active} stacked={stacked} />
 
       <div className="editor__scroll">
         <div className="editor__sheet" ref={sheetRef}>
@@ -220,7 +210,6 @@ function PageSurface({
             onChange={write}
             onActive={setActive}
             onGone={(gone) => setActive((current) => (current === gone ? null : current))}
-            stacked={stacked}
           />
         </div>
       </div>

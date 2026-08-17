@@ -13,14 +13,11 @@ import { Modal } from './Modal'
  */
 export function EditorToolbar({
   editor,
-  onAlign,
   stacked,
 }: {
-  /** L'éditeur du cadre qui a le curseur ; nul tant qu'on n'a pas cliqué dedans. */
+  /** L'éditeur du bloc qui a le curseur ; nul tant qu'on n'a pas cliqué dedans. */
   editor: Editor | null
-  /** Fourni quand la page a plusieurs cadres à ranger. */
-  onAlign?: () => void
-  /** Vrai sur téléphone, où les cadres sont empilés : le geste n'est pas le même. */
+  /** Vrai au doigt : le geste ne se nomme pas pareil. */
   stacked?: boolean
 }) {
   /*
@@ -32,37 +29,22 @@ export function EditorToolbar({
   const live = editor && !editor.isDestroyed ? editor : null
 
   return live ? (
-    <ActiveToolbar editor={live} onAlign={onAlign} />
+    <ActiveToolbar editor={live} />
   ) : (
     <div className="toolbar" role="toolbar" aria-label="Mise en forme">
       {/*
-       * Sur téléphone les cadres sont empilés : on ne les pose pas où l'on
-       * veut, et promettre le contraire donnait un repère qui mentait — on
-       * touchait la page en suivant son conseil, sans que rien n'arrive.
+       * Le repère nomme le geste qui marche vraiment. Il a promis un temps
+       * qu'on pouvait écrire où l'on voulait sur la page — ce n'était pas vrai
+       * au doigt, et cela invitait à viser un vide qu'on ne voyait pas.
        */}
       <span className="toolbar__hint">
-        {stacked ? 'Touchez la page pour écrire.' : 'Cliquez où vous voulez écrire.'}
+        {stacked ? 'Touchez un bloc pour le mettre en forme.' : 'Cliquez dans un bloc pour le mettre en forme.'}
       </span>
-      {onAlign && <AlignTool onAlign={onAlign} />}
     </div>
   )
 }
 
-function AlignTool({ onAlign }: { onAlign: () => void }) {
-  return (
-    <Tool
-      label="Tout aligner"
-      onClick={onAlign}
-      // Le seul outil qui agit sur la page entière, et non sur un cadre : il
-      // se tient donc à l'écart, au bout de la barre.
-      className="toolbar__button is-apart"
-    >
-      <Glyph d="M4 5h16M4 10h10M4 15h16M4 20h10" />
-    </Tool>
-  )
-}
-
-function ActiveToolbar({ editor, onAlign }: { editor: Editor; onAlign?: () => void }) {
+function ActiveToolbar({ editor }: { editor: Editor }) {
   const [linkOpen, setLinkOpen] = useState(false)
 
   /*
@@ -208,8 +190,6 @@ function ActiveToolbar({ editor, onAlign }: { editor: Editor; onAlign?: () => vo
       >
         <Glyph d="m15 7 4 4-4 4M19 11h-9a5 5 0 0 0 0 10h3" />
       </Tool>
-
-      {onAlign && <AlignTool onAlign={onAlign} />}
 
       {linkOpen && (
         <LinkDialog

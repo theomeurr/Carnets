@@ -148,6 +148,33 @@
     min-height: 40px;
   }
 
+  /*
+   * Même raison pour la poignée d'un bloc : sans survol, elle ne serait jamais
+   * apparue, et réorganiser aurait été impossible au doigt.
+   */
+  .block__gutter {
+    opacity: 1;
+  }
+
+  .block__grab,
+  .block__remove {
+    width: 30px;
+    height: 30px;
+  }
+
+  /*
+   * Les blocs respirent davantage : les deux commandes, empilées dans la
+   * marge, sont plus hautes qu'un bloc d'une seule ligne. Trop serrées, la
+   * corbeille d'un bloc tombait à côté de la poignée du suivant.
+   *
+   * Cet écart est constant, et il le reste : l'avoir fait dépendre du focus
+   * déplaçait la page entre l'appui et le relâchement, et le bouton visé
+   * s'échappait sous le doigt — « Nouveau bloc » ne répondait plus.
+   */
+  .block + .block {
+    margin-top: 40px;
+  }
+
   .trash-row__restore,
   .trash-row__purge {
     height: 38px;
